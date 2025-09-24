@@ -1,0 +1,77 @@
+/* White, minimal 404 with big masked "Oops!" */
+
+:root {
+  --primary: #2563eb; /* button blue */
+  --primary-2: #1d4ed8; /* darker edge */
+  --text: #0b0f1a;
+  --muted: #6b7280;
+}
+
+.wrap {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 3rem 1rem;
+  background: #fff;
+  color: var(--text);
+}
+
+.inner {
+  max-width: 860px;
+  width: 100%;
+  text-align: center;
+  margin-inline: auto;
+}
+
+/* Big "Oops!" with galaxy image fill */
+.oops {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0b0f1a;
+  line-height: 0.9;
+  font-size: clamp(3rem, 16vw, 12rem);
+  margin: 0;
+  padding: 0;
+  /* background-image: url("../../img/glx.jpg"); */
+  /* background-size: cover;
+  background-position: center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+} */
+}
+
+.hint {
+  margin-top: 28px !important;
+  font-size: clamp(1rem, 2.2vw, 1.25rem);
+  font-weight: 700;
+  display: block;
+}
+
+.copy {
+  margin: 0.5rem auto 1.75rem;
+  color: var(--muted);
+  max-width: 46ch;
+}
+
+/* CTA */
+.cta {
+  display: inline-block;
+  padding: 0.85rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(180deg, var(--primary), var(--primary-2));
+  box-shadow: 0 10px 24px rgba(29, 78, 216, 0.35),
+    inset 0 -2px 0 rgba(255, 255, 255, 0.15);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+.cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(29, 78, 216, 0.4);
+}
+.cta:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 18px rgba(29, 78, 216, 0.35);
+}
