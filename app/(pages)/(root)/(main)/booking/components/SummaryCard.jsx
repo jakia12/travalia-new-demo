@@ -1,7 +1,7 @@
 // app/_components/SummaryCard.jsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 
 // allowed add-on keys (kept in sync with your UI)
@@ -66,6 +66,79 @@ export default function SummaryCard({
   // ---------------- Modal State ----------------
   const [open, setOpen] = useState(false);
   const [anim, setAnim] = useState(false);
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    // --- lock scroll + avoid layout shift when scrollbar disappears
+    const body = document.body;
+    const prevOverflow = body.style.overflow;
+    const prevPaddingRight = body.style.paddingRight;
+
+    const scrollbarComp =
+      window.innerWidth - document.documentElement.clientWidth;
+    body.style.overflow = "hidden";
+    if (scrollbarComp > 0) {
+      body.style.paddingRight = `${scrollbarComp}px`;
+    }
+
+    // --- focus trap + Esc
+    const dialog = dialogRef.current;
+
+    const getFocusables = () => {
+      if (!dialog) return [];
+      return Array.from(
+        dialog.querySelectorAll(
+          'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => !el.hasAttribute("disabled"));
+    };
+
+    let focusables = getFocusables();
+    let first = focusables[0];
+    let last = focusables[focusables.length - 1];
+
+    // focus dialog or first control
+    (first || dialog)?.focus?.();
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
+        return;
+      }
+      if (e.key === "Tab") {
+        // Recompute in case DOM changed
+        focusables = getFocusables();
+        if (focusables.length === 0) return;
+        first = focusables[0];
+        last = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    // Use capture so we beat other listeners
+    document.addEventListener("keydown", onKeyDown, true);
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      body.style.overflow = prevOverflow;
+      body.style.paddingRight = prevPaddingRight;
+    };
+  }, [open]); // no need to depend on closeModal unless it’s recreated
 
   // Prefill from props when opening (adults from travelers best-effort)
   const [checkIn, setCheckIn] = useState("");
@@ -267,14 +340,18 @@ export default function SummaryCard({
           aria-modal="true"
           aria-labelledby="reserveModalTitle"
           onKeyDown={(e) => e.key === "Escape" && closeModal()}
-          onMouseDown={handleOverlayMouseDown} // ← close on outside click
+          onMouseDown={handleOverlayMouseDown} // close on outside mousedown
         >
-          <div className="reserve-backdrop" onClick={closeModal} />
+          {/* Backdrop (visual) */}
+          <div className="reserve-backdrop" />
 
+          {/* Dialog (stop propagation so inside clicks don’t close) */}
           <div
             className="reserve-dialog"
-            onMouseDown={(e) => e.stopPropagation()} // ← prevent outside close for dialog
+            ref={dialogRef}
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
+            tabIndex={-1}
           >
             <button
               type="button"
@@ -283,12 +360,8 @@ export default function SummaryCard({
               onClick={closeModal}
             />
             {/* Header */}
-            <div className=" mb-3">
-              <h4
-                id="reserveModalTitle"
-                className="m-0 text-center"
-                style={{ textAlign: "center" }}
-              >
+            <div className="mb-3">
+              <h4 id="reserveModalTitle" className="m-0 text-center">
                 Review & Confirm
               </h4>
             </div>
@@ -505,7 +578,7 @@ export default function SummaryCard({
             </div>
           </div>
 
-          {/* Tiny modal styles & transitions */}
+          {/* Styles */}
         </div>
       )}
     </>

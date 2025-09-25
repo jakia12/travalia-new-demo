@@ -7942,6 +7942,31 @@ ul {
   line-height: 32px;
 }
 
+.reserve-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: grid;
+  place-items: center;
+  /* IMPORTANT: intercept all pointer events */
+  pointer-events: auto;
+}
+.reserve-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 150ms ease;
+  pointer-events: auto; /* also intercepts clicks */
+}
+
+.reserve-modal.is-open .reserve-backdrop {
+  opacity: 1;
+}
+.reserve-modal.is-open .reserve-dialog {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
 /* =================== */
 /* responsive code */
 @media screen and (max-width: 768px) {
