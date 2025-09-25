@@ -94,84 +94,92 @@ export default function SidebarBookingCard({ pkg }) {
   ];
 
   return (
-    <div className="card border-0 shadow-sm">
-      <div className="card-body" style={{ fontSize: "17px" }}>
-        {/* Price */}
-        <div className="d-flex align-items-end justify-content-between mb-2">
-          <div>
-            <div className="fw-bold fs-4">
-              {money(priceMeta.from || 0, currency)}{" "}
-              <span className="text-muted fs-6">/ {per}</span>
+    <>
+      <div className="card border-0 shadow-sm">
+        <div className="card-body" style={{ fontSize: "17px" }}>
+          {/* Price */}
+          <div className="d-flex align-items-end justify-content-between mb-2">
+            <div>
+              <div className="fw-bold fs-4">
+                {money(priceMeta.from || 0, currency)}{" "}
+                <span className="text-muted fs-6">/ {per}</span>
+              </div>
+              <div className="small text-muted">
+                {priceMeta.includesTaxes
+                  ? "Taxes included"
+                  : "Taxes estimated at checkout"}
+              </div>
             </div>
-            <div className="small text-muted">
-              {priceMeta.includesTaxes
-                ? "Taxes included"
-                : "Taxes estimated at checkout"}
-            </div>
-          </div>
-          <span className="badge text-bg-success">
-            {pkg.category?.toUpperCase() || "PACKAGE"}
-          </span>
-        </div>
-
-        {/* Availability snapshot */}
-        {avail ? (
-          <div className="small mb-3 " style={{ fontSize: "16px" }}>
-            <span
-              className="badge text-bg-light border me-1 font-bold "
-              style={{ fontSize: "16px" }}
-            >
-              Availability
+            <span className="badge text-bg-success">
+              {pkg.category?.toUpperCase() || "PACKAGE"}
             </span>
-            {avail.from} → {avail.to}
-            {typeof avail.seatsLeft === "number" ? (
-              <span className="ms-2 text-success">
-                ({avail.seatsLeft} left)
+          </div>
+
+          {/* Availability snapshot */}
+          {avail ? (
+            <div className="small mb-3 " style={{ fontSize: "16px" }}>
+              <span
+                className="badge text-bg-light border me-1 font-bold "
+                style={{ fontSize: "16px" }}
+              >
+                Availability
               </span>
-            ) : null}
-          </div>
-        ) : null}
-
-        {/* Quick facts */}
-        <dl className="row small mb-3 ">
-          {quickFacts.map((f) => (
-            <div className="col-12 d-flex " key={f.k}>
-              <dt className="me-2 text-muted font-bold">{f.k}:</dt>
-              <dd className="mb-1">{f.v}</dd>
+              {avail.from} → {avail.to}
+              {typeof avail.seatsLeft === "number" ? (
+                <span className="ms-2 text-success">
+                  ({avail.seatsLeft} left)
+                </span>
+              ) : null}
             </div>
-          ))}
-        </dl>
+          ) : null}
 
-        {/* Tiny inclusions preview */}
-        {pkg.inclusions?.length ? (
-          <>
-            <div className="small fw-semibold mb-1">Included</div>
-            <ul className="small ps-3 mb-3">
-              {pkg.inclusions.slice(0, 3).map((x, i) => (
-                <li key={i}>{x}</li>
-              ))}
-              {pkg.inclusions.length > 3 && <li>…and more</li>}
-            </ul>
-          </>
-        ) : null}
+          {/* Quick facts */}
+          <dl className="row small mb-3 ">
+            {quickFacts.map((f) => (
+              <div className="col-12 d-flex " key={f.k}>
+                <dt className="me-2 text-muted font-bold">{f.k}:</dt>
+                <dd className="mb-1">{f.v}</dd>
+              </div>
+            ))}
+          </dl>
 
-        {/* Policy snippet */}
-        {pkg.cancellationPolicy ? (
-          <div className="small text-muted mb-3" style={{ fontSize: "16px" }}>
-            <span
-              className="badge text-bg-light border me-1"
-              style={{ fontSize: "16px" }}
-            >
-              Cancellation
-            </span>
-            {pkg.cancellationPolicy.length > 110
-              ? pkg.cancellationPolicy.slice(0, 110) + "…"
-              : pkg.cancellationPolicy}
-          </div>
-        ) : null}
+          {/* Tiny inclusions preview */}
+          {pkg.inclusions?.length ? (
+            <>
+              <div className="small fw-semibold mb-1">Included</div>
+              <ul className="small ps-3 mb-3">
+                {pkg.inclusions.slice(0, 3).map((x, i) => (
+                  <li key={i}>{x}</li>
+                ))}
+                {pkg.inclusions.length > 3 && <li>…and more</li>}
+              </ul>
+            </>
+          ) : null}
 
-        {/* Totals preview */}
-        <div className="row g-1 small mb-3 border-top mt-4 pb-3">
+          {/* Policy snippet */}
+          {pkg.cancellationPolicy ? (
+            <div className="small text-muted mb-3" style={{ fontSize: "16px" }}>
+              <span
+                className="badge text-bg-light border me-1"
+                style={{ fontSize: "16px" }}
+              >
+                Cancellation
+              </span>
+              {pkg.cancellationPolicy.length > 110
+                ? pkg.cancellationPolicy.slice(0, 110) + "…"
+                : pkg.cancellationPolicy}
+            </div>
+          ) : null}
+
+          {/* Totals preview */}
+        </div>
+      </div>
+
+      <div className="card border-0 shadow-sm mt-5 p-4">
+        <div className="row g-1 small mb-3  mt-4 pb-3">
+          <h5 className="fw-semibold mb-2" style={{ fontFamily: "playfair" }}>
+            Price Snapshot
+          </h5>
           <div className="col-12 d-flex justify-content-between">
             <span>Base ({per === "person" ? `${pax} pax` : "package"})</span>
             <strong>{money(baseTotal, currency)}</strong>
@@ -200,11 +208,8 @@ export default function SidebarBookingCard({ pkg }) {
           >
             {loading ? "Redirecting…" : "Book now"}
           </button>
-          <div className="small text-muted text-center mt-2">
-            🔒 Secure checkout by Stripe
-          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -8,36 +8,6 @@ export async function generateStaticParams() {
   return resorts.map((r) => ({ slug: r.slug }));
 }
 
-// booking info calc
-// simple defaults for an estimate
-const DEFAULT_NIGHTS = 3;
-const DEFAULT_GUESTS = 2;
-
-const nights = DEFAULT_NIGHTS;
-const guests = DEFAULT_GUESTS;
-const baseRate = resort?.priceFrom || 0;
-
-const greenTaxPer = (() => {
-  const m = resort?.fees?.mandatory?.find?.((x) =>
-    (x.label || "").toLowerCase().includes("green tax")
-  );
-  if (!m?.amount) return 0;
-  const match = String(m.amount).match(/(\d+(\.\d+)?)/);
-  return match ? Number(match[1]) : 0;
-})();
-
-const baseTotal = baseRate * nights * guests;
-const greenTaxTotal = greenTaxPer * nights * guests;
-const taxes10 = Math.round(baseTotal * 0.1); // mirrors your booking calc
-const grandTotal = baseTotal + greenTaxTotal + taxes10;
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(n);
-
 // SEO from API (falls back gracefully)
 export async function generateMetadata({ params }) {
   const resort = getResortBySlug(params.slug);
@@ -110,7 +80,9 @@ function InfoRow({ label, children }) {
 function SectionHeader({ id, title, subtitle }) {
   return (
     <header id={id} className="mb-3">
-      <h2 className="h4 fw-semibold mb-1">{title}</h2>
+      <h2 className="h4 fw-semibold mb-1" style={{ fontFamily: "playfair" }}>
+        {title}
+      </h2>
       {subtitle ? <p className="text-muted mb-0">{subtitle}</p> : null}
     </header>
   );
@@ -125,7 +97,11 @@ function AtAGlance({ resort }) {
   return (
     <div className="card border-0 shadow-sm mb-4">
       <div className="card-body">
-        <SectionHeader id="overview" title="Overview" />
+        <SectionHeader
+          id="overview"
+          title="Overview"
+          style={{ BiFontFamily: "playfair" }}
+        />
         <p className="mb-3">{resort.description}</p>
         {highlights.length ? (
           <>
@@ -660,11 +636,40 @@ export default function ResortDetailPage({ params }) {
     { id: "dining", label: "Dining" },
     { id: "wellness", label: "Wellness" },
     { id: "activities", label: "Activities" },
-    { id: "transfers", label: "Transfers" },
-    { id: "policies", label: "Policies & Fees" },
-    { id: "faq", label: "FAQs" },
-    { id: "more", label: "More" },
+    // { id: "transfers", label: "Transfers" },
+    // { id: "policies", label: "Policies & Fees" },
+    // { id: "faq", label: "FAQs" },
+    // { id: "more", label: "More" },
   ];
+  // ---- Price Snapshot calcs (must be inside the component, after `resort` exists)
+  const DEFAULT_NIGHTS = 3;
+  const DEFAULT_GUESTS = 2;
+
+  const nights = DEFAULT_NIGHTS;
+  const guests = DEFAULT_GUESTS;
+  const baseRate = resort?.priceFrom ?? 0;
+
+  const greenTaxPer = (() => {
+    const m = resort?.fees?.mandatory?.find?.((x) =>
+      (x.label || "").toLowerCase().includes("green tax")
+    );
+    if (!m?.amount) return 0;
+    const match = String(m.amount).match(/(\d+(\.\d+)?)/);
+    return match ? Number(match[1]) : 0;
+  })();
+
+  const baseTotal = baseRate * nights * guests;
+  const greenTaxTotal = greenTaxPer * nights * guests;
+  // keep this aligned with your booking logic
+  const taxes10 = Math.round(baseTotal * 0.1);
+  const grandTotal = baseTotal + greenTaxTotal + taxes10;
+
+  const fmt = (n) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(n);
 
   return (
     <>
@@ -761,10 +766,10 @@ export default function ResortDetailPage({ params }) {
             <Dining resort={resort} />
             <Wellness resort={resort} />
             <Activities resort={resort} />
-            <Transfers resort={resort} />
+            {/* <Transfers resort={resort} />
             <PoliciesFees resort={resort} />
             <FAQs resort={resort} />
-            <Extras resort={resort} />
+            <Extras resort={resort} /> */}
           </div>
 
           {/* Right sidebar */}
@@ -773,7 +778,12 @@ export default function ResortDetailPage({ params }) {
               {/* Resort facts */}
               <div className="card border-0 shadow-sm mb-3">
                 <div className="card-body">
-                  <h5 className="fw-semibold mb-3">Resort Facts</h5>
+                  <h5
+                    className="fw-semibold mb-3"
+                    style={{ fontFamily: "playfair" }}
+                  >
+                    Resort Facts
+                  </h5>
                   <dl className="row small mb-0">
                     <InfoRow label="Island">{resort.island}</InfoRow>
                     <InfoRow label="Rating">
@@ -790,49 +800,45 @@ export default function ResortDetailPage({ params }) {
                 </div>
               </div>
 
-              {/* Advisor */}
-              <div className="card border-0 shadow-sm">
-                {/* Price Snapshot (no form) */}
-                <div className="card border-0 shadow-sm mb-3">
-                  <div className="card-body">
-                    <h5 className="fw-semibold mb-2">Price Snapshot</h5>
-                    <div className="small text-muted mb-2">
-                      {nights} night{nights > 1 ? "s" : ""} · {guests} guest
-                      {guests > 1 ? "s" : ""} · from {fmt(baseRate)}/night
-                    </div>
+              {/* Price Snapshot (no form) */}
+              <div className="card border-0 shadow-sm mb-3">
+                <div className="card-body">
+                  <h5
+                    className="fw-semibold mb-2"
+                    style={{ fontFamily: "playfair" }}
+                  >
+                    Price Snapshot
+                  </h5>
+                  <div className="small text-muted mb-2">
+                    {nights} night{nights > 1 ? "s" : ""} · {guests} guest
+                    {guests > 1 ? "s" : ""} · from {fmt(baseRate)}/night
+                  </div>
 
-                    <div className="d-flex justify-content-between mb-1">
-                      <span className="text-muted">Base</span>
-                      <strong>{fmt(baseTotal)}</strong>
-                    </div>
-                    <div className="d-flex justify-content-between mb-1">
-                      <span className="text-muted">Green Tax</span>
-                      <strong>{fmt(greenTaxTotal)}</strong>
-                    </div>
-                    <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Taxes & fees (10%)</span>
-                      <strong>{fmt(taxes10)}</strong>
-                    </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Base</span>
+                    <strong>{fmt(baseTotal)}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Green Tax</span>
+                    <strong>{fmt(greenTaxTotal)}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="text-muted">Taxes & fees (10%)</span>
+                    <strong>{fmt(taxes10)}</strong>
+                  </div>
 
-                    <div className="d-flex justify-content-between align-items-center mt-2">
-                      <span className="h6 mb-0">Total</span>
-                      <span className="h4 mb-0">{fmt(grandTotal)}</span>
-                    </div>
+                  <div className="d-flex justify-content-between align-items-center mt-2">
+                    <span className="h6 mb-0">Total</span>
+                    <span className="h4 mb-0">{fmt(grandTotal)}</span>
+                  </div>
 
-                    <div className="d-grid mt-3">
-                      <Link
-                        href={`/booking?resort=${resort.slug}`}
-                        className="btn btn-success btn-lg"
-                      >
-                        Book Now · {fmt(grandTotal)}
-                      </Link>
-                    </div>
-
-                    <p className="small text-muted mt-2 mb-0">
-                      Estimate uses starting nightly rate and default {nights}{" "}
-                      nights/{guests} guests. Final price varies by villa &
-                      dates.
-                    </p>
+                  <div className="d-grid mt-3">
+                    <Link
+                      href={`/booking?resort=${resort.slug}`}
+                      className="btn btn-success btn-lg"
+                    >
+                      Book Now · {fmt(grandTotal)}
+                    </Link>
                   </div>
                 </div>
               </div>

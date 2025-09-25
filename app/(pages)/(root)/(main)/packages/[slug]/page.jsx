@@ -46,14 +46,18 @@ export default function PackageDetailPage({ params }) {
         }}
       >
         <div className="container py-5">
-          <div className="row align-items-end">
-            <div className="col-lg-8">
-              <span className="badge bg-success mb-3">
-                {pkg.category?.toUpperCase() || "PACKAGE"}
-              </span>
-              <h1 className="display-5 fw-bold mb-2">{pkg.title}</h1>
-              <p className="lead mb-3">{pkg.summary}</p>
-              <div className="d-flex flex-wrap gap-2">
+          <div className="row ">
+            <div className="col-lg-12">
+              <div className="mx-auto w-[95%] max-w-[900px] pt-[90px]">
+                {/* <span className="badge bg-success mb-3">
+                  {pkg.category?.toUpperCase() || "PACKAGE"}
+                </span> */}
+                <h1 className="display-5 fw-bold mb-2m text-center">
+                  {pkg.title}
+                </h1>
+                <p className="lead mb-3 text-center">{pkg.summary}</p>
+              </div>
+              {/* <div className="d-flex flex-wrap gap-2">
                 <span className="badge bg-light text-dark">
                   📍 {cityCountry(pkg.location)}
                 </span>
@@ -66,7 +70,7 @@ export default function PackageDetailPage({ params }) {
                     ⭐ {pkg.rating} ({pkg.reviewsCount || 0})
                   </span>
                 ) : null}
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
