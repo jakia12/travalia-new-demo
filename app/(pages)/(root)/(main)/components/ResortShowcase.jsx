@@ -4,9 +4,10 @@
 import { resorts } from "@/data/resorts";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function ResortShowcase() {
-  // show the first 3 like your original layout; change to slice(0,6) if needed
+  const router = useRouter();
   const list = resorts.slice(0, 3);
 
   return (
@@ -34,7 +35,12 @@ export default function ResortShowcase() {
       <div className="row g-4">
         {list.map((r, i) => (
           <div className="col-12 col-lg-4" key={r.id}>
-            <Link href={`/resorts/${r.slug}`}>
+            {/* ✅ Single Link wrapping the entire card */}
+            <Link
+              href={`/resorts/${r.slug}`}
+              className="text-reset text-decoration-none d-block"
+              aria-label={`View ${r.name}`}
+            >
               <article className="resort-tile position-relative rounded-4 overflow-hidden">
                 <Image
                   src={r.img}
@@ -48,9 +54,25 @@ export default function ResortShowcase() {
                 <div className="tile-content text-white">
                   <h3 className="h5 mb-2">{r.name}</h3>
                   <p className="mb-3 small opacity-90">{r.short}</p>
-                  <Link
-                    href={`/resorts/${r.slug}`}
-                    className="book-link flex items-center"
+
+                  {/* ✅ Button (not a Link) so we avoid <a> inside <a> */}
+                  <button
+                    type="button"
+                    className="book-link flex items-center text-white"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // route wherever you want the CTA to go:
+                      router.push(`/resorts/${r.slug}`); // or router.push(`/booking?resort=${r.slug}`)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        router.push(`/resorts/${r.slug}`);
+                      }
+                    }}
+                    aria-label={`Book ${r.name}`}
                   >
                     BOOK NOW
                     <svg
@@ -62,7 +84,7 @@ export default function ResortShowcase() {
                     >
                       <path d="M5 12h14M13 5l7 7-7 7" />
                     </svg>
-                  </Link>
+                  </button>
                 </div>
               </article>
             </Link>

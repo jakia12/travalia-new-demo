@@ -3,8 +3,11 @@
 import { packages } from "@/data/packages";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function PackagesSection() {
+  const router = useRouter();
+
   return (
     <section>
       <div className="cs_height_135 cs_height_lg_75" />
@@ -31,8 +34,13 @@ export default function PackagesSection() {
       <div className="container">
         <div className="row cs_gap_y_24">
           {packages.map((p, i) => (
-            <div className="col-12 col-md-6 col-lg-4" key={i}>
-              <Link key={p.id} href={`/packages/${p.slug}`}>
+            <div className="col-12 col-md-6 col-lg-4" key={p.id ?? i}>
+              {/* ONE link wrapping the whole card */}
+              <Link
+                href={`/packages/${p.slug}`}
+                className="text-reset text-decoration-none d-block"
+                aria-label={`View ${p.title}`}
+              >
                 <article className="package-card position-relative overflow-hidden">
                   {/* Image section */}
                   <div className="card-img-wrap">
@@ -49,44 +57,42 @@ export default function PackagesSection() {
                   <div className="card-overlay" />
 
                   <div className="card-content position-absolute w-100 h-100 d-flex flex-column justify-content-end p-[25px]">
-                    {/* <div className="cs_card_meta cs_white_color d-flex gap-3 mb-2">
-                    <div>
-                      <i className="fa-solid fa-location-dot me-1" />
-                      <span style={{ fontFamily: "Playfair" }}>
-                        {p.location}
-                      </span>
-                    </div>
-                    <div>
-                      <i className="fa-regular fa-clock me-1" />
-                      <span style={{ fontFamily: "Playfair" }}>{p.days}</span>
-                    </div>
-                    <div>
-                      <i className="fa-solid fa-star me-1" />
-                      <span style={{ fontFamily: "Playfair" }}>{p.rating}</span>
-                    </div>
-                  </div> */}
-
                     <h2
                       className="cs_card_title cs_fs_24 cs_medium text-white"
                       style={{ fontFamily: "Playfair" }}
                     >
-                      <Link
-                        href="/booking"
-                        className="text-white text-decoration-none"
-                      >
-                        {p.title}
-                      </Link>
+                      {/* Title is just text now (no nested link) */}
+                      {p.title}
                     </h2>
 
                     <div className="d-flex justify-content-between align-items-center mt-3 hid">
-                      <Link
-                        href="/booking"
-                        className=" fw-semibold buy-btn"
-                        aria-label={`Buy ${p.title}`}
-                        style={{ fontFamily: "Playfair" }}
+                      {/* Button CTA that routes to /booking without triggering the outer Link */}
+                      <button
+                        type="button"
+                        className="fw-semibold buy-btn text-white text-decoration-none"
+                        aria-label={`Get ${p.title}`}
+                        style={{
+                          fontFamily: "Playfair",
+                          background: "transparent",
+                          border: 0,
+                          padding: 0,
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          router.push("/booking"); // or `/booking?pkg=${p.slug}`
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            router.push("/booking");
+                          }
+                        }}
                       >
                         Get Now
-                      </Link>
+                      </button>
+
                       <span className="cs_card_price cs_fs_24 cs_medium text-white mb-0">
                         {p.price}
                       </span>
@@ -98,8 +104,6 @@ export default function PackagesSection() {
           ))}
         </div>
       </div>
-
-      {/* Scoped styles */}
     </section>
   );
 }

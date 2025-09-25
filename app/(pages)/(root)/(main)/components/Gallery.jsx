@@ -1,6 +1,6 @@
 const Gallery = () => {
   return (
-    <section classNameName="py-[90px]">
+    <section className="py-[90px]">
       <div className="container">
         <div className="cs_section_heading cs_style_1 text-center">
           <h3
