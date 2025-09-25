@@ -2,9 +2,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { toast } from "react-hot-toast";
+import { MdDateRange } from "react-icons/md";
 import { z } from "zod";
 import SummaryCard from "./components/SummaryCard";
+
 // ⬇️ update if your SummaryCard lives elsewhere
 
 const PACKAGES = [
@@ -365,23 +369,47 @@ export default function BookingPage() {
                   <div className="row g-3">
                     <div className="col-12 col-md-6">
                       <label className="form-label">Check-in</label>
-                      <input
-                        id="checkIn"
-                        type="date"
-                        className="form-control"
-                        value={checkIn}
-                        onChange={(e) => setCheckIn(e.target.value)}
-                      />
+                      <div className="flex items-center justify-between relative">
+                        <DatePicker
+                          id="checkIn"
+                          selected={checkIn ? new Date(checkIn) : null}
+                          onChange={(date) =>
+                            setCheckIn(
+                              date ? date.toISOString().slice(0, 10) : ""
+                            )
+                          }
+                          dateFormat="yyyy-MM-dd"
+                          placeholderText="Select date"
+                          minDate={new Date()}
+                          className="form-control"
+                          wrapperClassName="w-100"
+                        />
+
+                        <MdDateRange className="absolute top-[11px] right-2" />
+                      </div>
                     </div>
                     <div className="col-12 col-md-6">
                       <label className="form-label">Check-out</label>
-                      <input
-                        id="checkOut"
-                        type="date"
-                        className="form-control"
-                        value={checkOut}
-                        onChange={(e) => setCheckOut(e.target.value)}
-                      />
+                      <label className="form-label" htmlFor="checkOut">
+                        Check-out
+                      </label>
+                      <div className="flex items-center justify-between relative">
+                        <DatePicker
+                          id="checkOut"
+                          selected={checkOut ? new Date(checkOut) : null}
+                          onChange={(date) =>
+                            setCheckOut(
+                              date ? date.toISOString().slice(0, 10) : ""
+                            )
+                          }
+                          dateFormat="yyyy-MM-dd"
+                          placeholderText="Select date"
+                          minDate={checkIn ? new Date(checkIn) : new Date()}
+                          className="form-control"
+                          wrapperClassName="w-100"
+                        />
+                        <MdDateRange className="absolute top-[11px] right-2" />
+                      </div>
                     </div>
 
                     <div className="col-6">

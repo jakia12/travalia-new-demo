@@ -7630,13 +7630,25 @@ a {
   bottom: 1.25rem;
 }
 .book-link {
-  color: #2ecc71;
+  color: #2ecc71 !important;
   z-index: 2147483647;
-
+  border: 1px solid #2ecc71 !important;
   padding-bottom: 2px;
+  padding: 5px 15px;
   font-size: 14px;
   transition: opacity 0.35s, transform 0.35s;
   text-decoration: none !important;
+}
+/* .tocBtn {
+  font-size: 18px;
+  padding: 7px 19px;
+  background: #2ecc71;
+  color: black;
+  border-radius: 8px;
+} */
+.btn.btn-sm.btn-outline-dark {
+  font-size: 18px;
+  padding: 7px 19px;
 }
 /* .resort-tile:hover .book-link {
   opacity: 1;

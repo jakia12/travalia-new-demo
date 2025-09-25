@@ -58,7 +58,7 @@ export default function ResortShowcase() {
                   {/* ✅ Button (not a Link) so we avoid <a> inside <a> */}
                   <button
                     type="button"
-                    className="book-link flex items-center text-white"
+                    className="book-link flex items-center rounded"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();

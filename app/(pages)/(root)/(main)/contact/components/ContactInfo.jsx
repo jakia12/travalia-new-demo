@@ -20,9 +20,10 @@ export default function ContactInfo() {
                 Travalia HQ (Mailing)
               </h2>
               <p className="cs_iconbox_subtitle mb-2">
-                548 Market St, Suite 64321 <br /> San Francisco, CA 94104, USA
+                H. Fasmeeru Building, 3rd Floor <br />
+                Boduthakurufaanu Magu, Malé 20182, Maldives
               </p>
-              <p className="mb-2 small text-muted">Mon–Fri · 9:00–18:00 PT</p>
+              {/* <p className="mb-2 small text-muted">Sun–Thu · 9:00–18:00 MVT</p> */}
             </div>
           </div>
 
@@ -36,18 +37,18 @@ export default function ContactInfo() {
                 Call Travalia
               </h2>
               <p className="cs_iconbox_subtitle mb-1">
-                Toll-free (US/CA):{" "}
-                <a href="tel:+18885550199">+1&nbsp;888&nbsp;555&nbsp;0199</a>
+                Local (Maldives):{" "}
+                <a href="tel:+9606501234">+960&nbsp;650&nbsp;1234</a>
                 <br />
                 International:{" "}
-                <a href="tel:+442055500199" style={{ color: "#000" }}>
-                  +44&nbsp;20&nbsp;5550&nbsp;0199
+                <a href="tel:+9607784567" style={{ color: "#000" }}>
+                  +960&nbsp;778&nbsp;4567
                 </a>
               </p>
               <p className="mb-0 small text-muted">
                 On-trip emergencies 24/7:{" "}
-                <a href="tel:+16465550123" style={{ color: "#000" }}>
-                  +1&nbsp;646&nbsp;555&nbsp;0123
+                <a href="tel:+9607779110" style={{ color: "#000" }}>
+                  +960&nbsp;777&nbsp;9110
                 </a>
               </p>
             </div>
@@ -87,11 +88,11 @@ export default function ContactInfo() {
                 <br />
                 WhatsApp:{" "}
                 <a
-                  href="https://wa.me/14155550110"
+                  href="https://wa.me/9607784567"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  +1&nbsp;415&nbsp;555&nbsp;0110
+                  +960&nbsp;778&nbsp;4567
                 </a>
               </p>
               <p className="mb-0 small text-muted">24/7 traveler support</p>

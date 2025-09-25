@@ -2,8 +2,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { MdDateRange } from "react-icons/md";
 import { z } from "zod";
-
 // allowed add-on keys (kept in sync with your UI)
 const ADDON_KEYS = ["sunsetCruise", "spaCredit", "waterSports"];
 
@@ -48,6 +50,17 @@ const BookingSchema = z
       });
     }
   });
+
+// parse "YYYY-MM-DD" safely in local time (no timezone jump)
+const fromYMD = (s) => {
+  if (!s) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+const toYMD = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
 
 export default function SummaryCard({
   pkg,
@@ -248,6 +261,21 @@ export default function SummaryCard({
       addOns: v.data.addOns,
     });
   }
+  // (reuse these if you already added them for check-in)
+  const fromYMD = (s) => {
+    if (!s) return null;
+    const [y, m, d] = s.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const toYMD = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+  const addDays = (d, n) => {
+    const x = new Date(d);
+    x.setDate(x.getDate() + n);
+    return x;
+  };
 
   return (
     <>
@@ -372,15 +400,25 @@ export default function SummaryCard({
               <div className="row g-3">
                 <div className="col-12 col-md-6">
                   <label className="form-label">Check-in</label>
-                  <input
-                    id="modalCheckIn"
-                    type="date"
-                    className={`form-control ${
-                      fieldErrors.checkIn ? "is-invalid" : ""
-                    }`}
-                    value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
-                  />
+
+                  <div className="flex items-center justify-between relative">
+                    <DatePicker
+                      id="modalCheckIn"
+                      selected={fromYMD(checkIn)}
+                      onChange={(date) => setCheckIn(date ? toYMD(date) : "")}
+                      dateFormat="yyyy-MM-dd"
+                      placeholderText="Select date"
+                      minDate={new Date()} // today or later
+                      className={`form-control ${
+                        fieldErrors.checkIn ? "is-invalid" : ""
+                      }`}
+                      wrapperClassName="w-100"
+                      popperClassName="datepicker-over-modal" // ensure above Bootstrap modal
+                      portalId="bootstrap-modal-portal" // render in a portal to avoid clipping
+                    />
+                    <MdDateRange className="absolute top-[11px] right-2" />
+                  </div>
+
                   {fieldErrors.checkIn && (
                     <div className="invalid-feedback">
                       {fieldErrors.checkIn}
@@ -389,15 +427,30 @@ export default function SummaryCard({
                 </div>
                 <div className="col-12 col-md-6">
                   <label className="form-label">Check-out</label>
-                  <input
-                    id="modalCheckOut"
-                    type="date"
-                    className={`form-control ${
-                      fieldErrors.checkOut ? "is-invalid" : ""
-                    }`}
-                    value={checkOut}
-                    onChange={(e) => setCheckOut(e.target.value)}
-                  />
+                  <div className="flex items-center justify-between relative">
+                    <DatePicker
+                      id="modalCheckOut"
+                      selected={fromYMD(checkOut)}
+                      onChange={(date) => setCheckOut(date ? toYMD(date) : "")}
+                      dateFormat="yyyy-MM-dd"
+                      placeholderText="Select date"
+                      minDate={
+                        checkIn ? addDays(fromYMD(checkIn), 1) : new Date()
+                      } // must be at least the day after check-in
+                      startDate={fromYMD(checkIn)}
+                      endDate={fromYMD(checkOut)}
+                      selectsEnd
+                      className={`form-control ${
+                        fieldErrors.checkOut ? "is-invalid" : ""
+                      }`}
+                      wrapperClassName="w-100"
+                      popperClassName="datepicker-over-modal" // render above Bootstrap modal
+                      portalId="bootstrap-modal-portal"
+                    />
+
+                    <MdDateRange className="absolute top-[11px] right-2" />
+                  </div>
+
                   {fieldErrors.checkOut && (
                     <div className="invalid-feedback">
                       {fieldErrors.checkOut}
