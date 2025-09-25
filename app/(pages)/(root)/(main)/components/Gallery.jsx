@@ -5,11 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
 const IMAGES = [
-  "/img/gl1.webp",
-  "/img/gl2.webp",
-  "/img/gl3.webp",
+  "/img/gl1.png",
+  "/img/gl2.png",
+  "/img/gl3.png",
   "/img/gl4.webp",
-  "/img/gl5.webp",
+  "/img/gl5.png",
   "/img/gl6.webp",
   "/img/gl7.webp",
   "/img/gl8.webp",
@@ -79,7 +79,7 @@ const Gallery = () => {
         <div className="grid-wrapper">
           <div className="tall">
             <img
-              src="/img/gl1.webp"
+              src="/img/gl1.png"
               alt="Gallery 1"
               loading="lazy"
               onClick={() => openAt(0)}
@@ -88,7 +88,7 @@ const Gallery = () => {
           </div>
           <div>
             <img
-              src="/img/gl2.webp"
+              src="/img/gl2.png"
               alt="Gallery 2"
               loading="lazy"
               onClick={() => openAt(1)}
@@ -97,7 +97,7 @@ const Gallery = () => {
           </div>
           <div className="tall">
             <img
-              src="/img/gl3.webp"
+              src="/img/gl3.png"
               alt="Gallery 3"
               loading="lazy"
               onClick={() => openAt(2)}
@@ -115,7 +115,7 @@ const Gallery = () => {
           </div>
           <div>
             <img
-              src="/img/gl5.webp"
+              src="/img/gl5.png"
               alt="Gallery 5"
               loading="lazy"
               onClick={() => openAt(4)}
