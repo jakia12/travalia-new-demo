@@ -409,9 +409,7 @@ export default function SummaryCard({
                       dateFormat="yyyy-MM-dd"
                       placeholderText="Select date"
                       minDate={new Date()} // today or later
-                      className={`form-control ${
-                        fieldErrors.checkIn ? "is-invalid" : ""
-                      }`}
+                      className={`form-control `}
                       wrapperClassName="w-100"
                       popperClassName="datepicker-over-modal" // ensure above Bootstrap modal
                       portalId="bootstrap-modal-portal" // render in a portal to avoid clipping
@@ -440,9 +438,7 @@ export default function SummaryCard({
                       startDate={fromYMD(checkIn)}
                       endDate={fromYMD(checkOut)}
                       selectsEnd
-                      className={`form-control ${
-                        fieldErrors.checkOut ? "is-invalid" : ""
-                      }`}
+                      className={`form-control `}
                       wrapperClassName="w-100"
                       popperClassName="datepicker-over-modal" // render above Bootstrap modal
                       portalId="bootstrap-modal-portal"
