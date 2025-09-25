@@ -51,7 +51,7 @@ export default function Footer() {
           {/* Social Icons */}
           <div className="flex gap-5  md:mt-0 mt-4 lg:mt-0">
             <a
-              href="#"
+              href="https://www.facebook.com/"
               aria-label="Facebook"
               className="hover:text-white"
               style={{ color: "#ffffff" }}
@@ -59,7 +59,7 @@ export default function Footer() {
               <FaFacebookF className="text-2xl md:text-3xl" />
             </a>
             <a
-              href="#"
+              href="https://instagram.com/"
               aria-label="Twitter"
               className="hover:text-white"
               style={{ color: "#ffffff" }}
@@ -67,7 +67,7 @@ export default function Footer() {
               <FaTwitter className="text-2xl md:text-3xl" />
             </a>
             <a
-              href="#"
+              href="https://twitter.com/"
               aria-label="Instagram"
               className="hover:text-white"
               style={{ color: "#ffffff" }}

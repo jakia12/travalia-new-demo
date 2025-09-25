@@ -1,12 +1,11 @@
 // app/booking/page.jsx
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "react-hot-toast";
+import { z } from "zod";
 import SummaryCard from "./components/SummaryCard";
-// at the top of your component:
-// ← adjust if your path differs
+// ⬇️ update if your SummaryCard lives elsewhere
 
 const PACKAGES = [
   {
@@ -48,17 +47,17 @@ export default function BookingPage() {
     spaCredit: false,
     waterSports: false,
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 1;
     const inDate = new Date(checkIn);
     const outDate = new Date(checkOut);
     const ms = outDate - inDate;
-    const n = Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)));
-    return Number.isFinite(n) ? n : 1;
+    const n = Math.ceil(ms / (1000 * 60 * 60 * 24));
+    return Number.isFinite(n) && n > 0 ? n : 1;
   }, [checkIn, checkOut]);
 
-  // ❌ remove TS non-null (!) and use a safe fallback
   const pkg = useMemo(
     () => PACKAGES.find((p) => p.id === selected) ?? PACKAGES[0],
     [selected]
@@ -80,12 +79,7 @@ export default function BookingPage() {
   const taxes = Math.round((baseTotal + extrasTotal) * 0.1);
   const grandTotal = baseTotal + extrasTotal + taxes;
 
-  // reserve now button stuff
-
-  // state
-  const [submitting, setSubmitting] = useState(false);
-
-  // validation — shows BOTH missing date fields in one toast
+  // ---------- validation ----------
   function validate() {
     if (!selected) return { msg: "Pick a package" };
 
@@ -102,25 +96,21 @@ export default function BookingPage() {
     }
 
     if (new Date(checkOut) <= new Date(checkIn)) {
-      return { msg: "Check-out must be after check-in", focus: "checkOut" };
+      return { msg: "Check-out must be after check-in.", focus: "checkOut" };
     }
 
-    if (adults < 1) return { msg: "At least 1 adult" };
+    if (adults < 1)
+      return { msg: "At least 1 adult required.", focus: "adults" };
 
     return null;
   }
 
-  // handler — creates checkout and redirects; shows loading/success/error toasts
+  // ---------- reserve handler ----------
   async function handleReserve() {
     const error = validate();
-    if (error) {
-      toast.error(error.msg);
-      if (error.focus) document.getElementById(error.focus)?.focus();
-      return;
-    }
 
-    setSubmitting(true);
     const loadingId = toast.loading("Creating secure checkout…");
+    setSubmitting(true);
 
     const addOns = Object.entries(extras)
       .filter(([, v]) => v)
@@ -149,7 +139,7 @@ export default function BookingPage() {
         toast.success("Redirecting to Stripe…");
         window.location.href = data.url;
       } else {
-        toast.error(data?.error || "Failed to start checkout");
+        toast.error(data?.error || "Failed to start checkout.");
       }
     } catch (err) {
       toast.dismiss(loadingId);
@@ -158,12 +148,119 @@ export default function BookingPage() {
     }
   }
 
+  // mobile review and confirm
+
+  // Add-on keys used in your UI
+  const ADDON_KEYS = ["sunsetCruise", "spaCredit", "waterSports"];
+
+  // Zod schema (JS, not TS)
+  const BookingSchema = z
+    .object({
+      packageId: z.string().min(1, "Pick a package"),
+      checkIn: z.string().min(1, "Please select Check-in"),
+      checkOut: z.string().min(1, "Please select Check-out"),
+      adults: z.coerce.number().int().min(1, "At least 1 adult"),
+      children: z.coerce.number().int().min(0, "Children cannot be negative"),
+      nights: z.coerce.number().int().min(1, "At least 1 night"),
+      addOns: z.array(z.enum(ADDON_KEYS)).default([]),
+    })
+    .superRefine((val, ctx) => {
+      const inDate = new Date(val.checkIn);
+      const outDate = new Date(val.checkOut);
+      if (Number.isNaN(inDate.getTime()))
+        ctx.addIssue({
+          code: "custom",
+          message: "Invalid date",
+          path: ["checkIn"],
+        });
+      if (Number.isNaN(outDate.getTime()))
+        ctx.addIssue({
+          code: "custom",
+          message: "Invalid date",
+          path: ["checkOut"],
+        });
+      if (
+        !Number.isNaN(inDate.getTime()) &&
+        !Number.isNaN(outDate.getTime()) &&
+        outDate <= inDate
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Check-out must be after Check-in",
+          path: ["checkOut"],
+        });
+      }
+    });
+
+  // build add-ons array from state
+  const toAddOnsArray = () =>
+    Object.entries(extras)
+      .filter(([k, v]) => v && ADDON_KEYS.includes(k))
+      .map(([k]) => k);
+
+  // nice combined errors (same behavior you asked earlier)
+  function showIssuesToast(issues) {
+    const isDate = (i) =>
+      i.path?.[0] === "checkIn" || i.path?.[0] === "checkOut";
+    const missingDates = new Set(issues.filter(isDate).map((i) => i.path?.[0]));
+    if (missingDates.has("checkIn") && missingDates.has("checkOut")) {
+      toast.error("Please select Check-in & Check-out dates.", {
+        style: {
+          whiteSpace: "pre-wrap",
+          maxWidth: "min(92vw, 640px)",
+          width: "100%",
+        },
+      });
+      const el = document.getElementById("checkIn");
+      if (el) el.focus();
+      return;
+    }
+    const msg = issues
+      .map((i) => i.message)
+      .slice(0, 2)
+      .join("\n");
+    toast.error(msg || "Please check the form.", {
+      style: {
+        whiteSpace: "pre-wrap",
+        maxWidth: "min(92vw, 640px)",
+        width: "100%",
+      },
+    });
+  }
+
+  // SUBMIT handler for the MOBILE form
+  async function handleMobileSubmit(e) {
+    e.preventDefault();
+
+    const payload = {
+      packageId: selected, // using your page state
+      checkIn,
+      checkOut,
+      adults,
+      children,
+      nights,
+      addOns: toAddOnsArray(),
+    };
+
+    const parsed = BookingSchema.safeParse(payload);
+    if (!parsed.success) {
+      showIssuesToast(parsed.error.issues);
+      return;
+    }
+
+    // call your existing checkout flow.
+    // If your handleReserve accepts overrides, pass parsed.data:
+    await handleReserve(parsed.data);
+  }
+
   return (
     <main>
       {/* HERO */}
       <section
-        className="pt-[170px] pb-[130px] text-white"
+        className="text-white"
         style={{
+          paddingTop: "170px",
+          paddingBottom: "130px",
           backgroundImage:
             "linear-gradient(180deg, rgba(0,0,0,.9) 0%, rgba(0,0,0,.65) 100%), url('/img/rs1.webp')",
           backgroundSize: "cover",
@@ -176,7 +273,7 @@ export default function BookingPage() {
             <div className="col-xl-8">
               <p
                 className="text-uppercase mb-2"
-                style={{ letterSpacing: ".12em", color: "#9AE6B4" }}
+                style={{ letterSpacing: ".12em", color: "#2ecc71" }}
               >
                 Book Your Stay
               </p>
@@ -195,7 +292,7 @@ export default function BookingPage() {
             <div className="col-lg-8">
               <ul className="list-group list-group-horizontal-md rounded-4 overflow-hidden small">
                 <li
-                  className="list-group-item flex-fill bg-[#2ecc71] text-white border-0"
+                  className="list-group-item flex-fill text-white border-0"
                   style={{ background: "#2ecc71" }}
                 >
                   1. Choose Package
@@ -209,9 +306,9 @@ export default function BookingPage() {
       </section>
 
       {/* BOOKING CONTENT */}
-      <section className="container-fluid my-5 my-lg-5">
+      <section className="container-fluid my-5">
         <div className="row g-4 g-lg-5">
-          {/* LEFT: form + packages */}
+          {/* LEFT: package grid + form */}
           <div className="col-12 col-lg-8">
             {/* Package Picker */}
             <div className="mb-4 mb-lg-5">
@@ -229,6 +326,7 @@ export default function BookingPage() {
                         selected === p.id ? "selected" : ""
                       }`}
                       onClick={() => setSelected(p.id)}
+                      aria-pressed={selected === p.id}
                     >
                       <div
                         className="ratio ratio-1x1"
@@ -241,7 +339,10 @@ export default function BookingPage() {
                       <div className="card-body">
                         <div className="d-flex align-items-center justify-content-between">
                           <h3 className="h6 m-0">{p.title}</h3>
-                          <span className="badge bg-[#2ecc71]">
+                          <span
+                            className="badge"
+                            style={{ background: "#2ecc71" }}
+                          >
                             from ${p.base}/night
                           </span>
                         </div>
@@ -252,198 +353,206 @@ export default function BookingPage() {
               </div>
             </div>
 
-            {/* Booking Form */}
-            <div className="mb-4 mb-lg-5">
-              <h2 className="h4 mb-3">2) Dates & Guests</h2>
-              <div className="row g-3">
-                <div className="col-12 col-md-6">
-                  <label className="form-label">Check-in</label>
-                  <input
-                    id="checkIn" // ← add
-                    type="date"
-                    className="form-control"
-                    value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
-                  />
-                </div>
-                <div className="col-12 col-md-6">
-                  <label className="form-label">Check-out</label>
-                  <input
-                    id="checkOut" // ← add
-                    type="date"
-                    className="form-control"
-                    value={checkOut}
-                    onChange={(e) => setCheckOut(e.target.value)}
-                  />
-                </div>
-
-                <div className="col-12 col-md-4">
-                  <label className="form-label">Adults</label>
-                  <input
-                    type="number"
-                    min={1}
-                    className="form-control"
-                    value={adults}
-                    onChange={(e) =>
-                      setAdults(Math.max(1, Number(e.target.value) || 1))
-                    }
-                  />
-                </div>
-                <div className="col-12 col-md-4">
-                  <label className="form-label">Children</label>
-                  <input
-                    type="number"
-                    min={0}
-                    className="form-control"
-                    value={children}
-                    onChange={(e) =>
-                      setChildren(Math.max(0, Number(e.target.value) || 0))
-                    }
-                  />
-                </div>
-                <div className="col-12 col-md-4">
-                  <label className="form-label">Nights</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={nights}
-                    readOnly
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Extras */}
-            <div className="mb-4 mb-lg-5">
-              <h2 className="h4 mb-3">3) Optional Add-ons</h2>
-              <div className="row g-3">
-                <div className="col-12 col-md-4">
-                  <div className="form-check border rounded p-3 h-100">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="sunsetCruise"
-                      checked={extras.sunsetCruise}
-                      onChange={(e) =>
-                        setExtras((x) => ({
-                          ...x,
-                          sunsetCruise: e.target.checked,
-                        }))
-                      }
-                    />
-                    <label
-                      className="form-check-label ms-2"
-                      htmlFor="sunsetCruise"
-                    >
-                      Sunset Cruise <span className="text-muted">(+ $60)</span>
-                    </label>
-                  </div>
-                </div>
-                <div className="col-12 col-md-4">
-                  <div className="form-check border rounded p-3 h-100">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="spaCredit"
-                      checked={extras.spaCredit}
-                      onChange={(e) =>
-                        setExtras((x) => ({
-                          ...x,
-                          spaCredit: e.target.checked,
-                        }))
-                      }
-                    />
-                    <label
-                      className="form-check-label ms-2"
-                      htmlFor="spaCredit"
-                    >
-                      Spa Credit <span className="text-muted">(+ $80)</span>
-                    </label>
-                  </div>
-                </div>
-                <div className="col-12 col-md-4">
-                  <div className="form-check border rounded p-3 h-100">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="waterSports"
-                      checked={extras.waterSports}
-                      onChange={(e) =>
-                        setExtras((x) => ({
-                          ...x,
-                          waterSports: e.target.checked,
-                        }))
-                      }
-                    />
-                    <label
-                      className="form-check-label ms-2"
-                      htmlFor="waterSports"
-                    >
-                      Water Sports <span className="text-muted">(+ $50)</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Mobile Summary Trigger */}
-            <div className="d-lg-none mb-4">
-              <button
-                className="btn btn-success w-100 py-3"
-                data-bs-toggle="offcanvas"
-                data-bs-target="#summaryCanvas"
+            <div className="d-lg-none">
+              <form
+                className="d-lg-none"
+                onSubmit={handleMobileSubmit}
+                noValidate
               >
-                View Price Summary
-              </button>
-            </div>
+                {/* Dates & Guests (mobile) */}
+                <div className="mb-4">
+                  <h2 className="h5 mb-3">2) Dates & Guests</h2>
+                  <div className="row g-3">
+                    <div className="col-12 col-md-6">
+                      <label className="form-label">Check-in</label>
+                      <input
+                        id="checkIn"
+                        type="date"
+                        className="form-control"
+                        value={checkIn}
+                        onChange={(e) => setCheckIn(e.target.value)}
+                      />
+                    </div>
+                    <div className="col-12 col-md-6">
+                      <label className="form-label">Check-out</label>
+                      <input
+                        id="checkOut"
+                        type="date"
+                        className="form-control"
+                        value={checkOut}
+                        onChange={(e) => setCheckOut(e.target.value)}
+                      />
+                    </div>
 
-            {/* Continue CTA */}
-            <div className="d-grid">
-              <Link
-                href="#"
-                className={`btn btn-dark btn-lg py-3 ${
-                  submitting ? "disabled" : ""
-                }`}
-                style={{ background: "#2ecc71", border: "none" }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (!submitting) handleReserve();
-                }}
-                role="button"
-                aria-disabled={submitting ? "true" : "false"}
-                aria-busy={submitting ? "true" : "false"}
-              >
-                {submitting ? "Redirecting…" : "Continue to Payment"}
-              </Link>
+                    <div className="col-6">
+                      <label className="form-label" htmlFor="adults">
+                        Adults
+                      </label>
+                      <input
+                        id="adults"
+                        type="number"
+                        min={1}
+                        className="form-control"
+                        value={adults}
+                        onChange={(e) =>
+                          setAdults(Math.max(1, Number(e.target.value) || 1))
+                        }
+                      />
+                    </div>
+                    <div className="col-6">
+                      <label className="form-label">Children</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className="form-control"
+                        value={children}
+                        onChange={(e) =>
+                          setChildren(Math.max(0, Number(e.target.value) || 0))
+                        }
+                      />
+                    </div>
+
+                    <div className="col-12 col-md-6">
+                      <label className="form-label">Nights</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={nights}
+                        readOnly
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Add-ons (mobile) */}
+                <div className="mb-4">
+                  <h2 className="h5 mb-3">3) Optional Add-ons</h2>
+                  <div className="row g-3">
+                    <div className="col-12 col-sm-4">
+                      <div className="form-check border rounded p-3 h-100">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="sunsetCruise"
+                          checked={extras.sunsetCruise}
+                          onChange={(e) =>
+                            setExtras((x) => ({
+                              ...x,
+                              sunsetCruise: e.target.checked,
+                            }))
+                          }
+                        />
+                        <label
+                          className="form-check-label ms-2"
+                          htmlFor="sunsetCruise"
+                        >
+                          Sunset Cruise{" "}
+                          <span className="text-muted">(+ $60)</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div className="col-12 col-sm-4">
+                      <div className="form-check border rounded p-3 h-100">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="spaCredit"
+                          checked={extras.spaCredit}
+                          onChange={(e) =>
+                            setExtras((x) => ({
+                              ...x,
+                              spaCredit: e.target.checked,
+                            }))
+                          }
+                        />
+                        <label
+                          className="form-check-label ms-2"
+                          htmlFor="spaCredit"
+                        >
+                          Spa Credit <span className="text-muted">(+ $80)</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div className="col-12 col-sm-4">
+                      <div className="form-check border rounded p-3 h-100">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="waterSports"
+                          checked={extras.waterSports}
+                          onChange={(e) =>
+                            setExtras((x) => ({
+                              ...x,
+                              waterSports: e.target.checked,
+                            }))
+                          }
+                        />
+                        <label
+                          className="form-check-label ms-2"
+                          htmlFor="waterSports"
+                        >
+                          Water Sports{" "}
+                          <span className="text-muted">(+ $50)</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile sticky submit bar */}
+                <div className="position-sticky bottom-0 py-3 bg-white border-top">
+                  <div className="container-fluid">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <div className="small text-muted">Total</div>
+                        <div className="h5 mb-0">${grandTotal}</div>
+                      </div>
+                      <button
+                        type="submit"
+                        className="btn btn-success"
+                        disabled={submitting}
+                        aria-busy={submitting ? "true" : "false"}
+                      >
+                        {submitting ? "Processing…" : "Review & Confirm"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </form>
             </div>
           </div>
 
-          {/* RIGHT: summary (sticky on desktop) */}
+          {/* RIGHT: desktop summary (sticky) */}
           <div className="col-12 col-lg-4 d-none d-lg-block">
-            <SummaryCard
-              pkg={pkg}
-              nights={nights}
-              travelers={travelers}
-              extras={extras}
-              extrasTotal={extrasTotal}
-              baseTotal={baseTotal}
-              taxes={taxes}
-              grandTotal={grandTotal}
-              onReserve={handleReserve} // NEW
-              submitting={submitting} // NEW
-            />
+            <div style={{ position: "sticky", top: 24 }}>
+              <SummaryCard
+                pkg={pkg}
+                nights={nights}
+                travelers={travelers}
+                extras={extras}
+                extrasTotal={extrasTotal}
+                baseTotal={baseTotal}
+                taxes={taxes}
+                grandTotal={grandTotal}
+                submitting={submitting}
+                onReserve={handleReserve}
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Mobile Offcanvas Summary */}
+      {/* MOBILE OFFCANVAS (must NOT be inside a hidden parent) */}
       <div
-        className="offcanvas offcanvas-bottom h-auto"
+        className="offcanvas offcanvas-bottom h-auto d-lg-none"
         tabIndex={-1}
-        id="summaryCanvas"
+        id="mobileCheckout"
+        aria-labelledby="mobileCheckoutTitle"
       >
         <div className="offcanvas-header">
-          <h5 className="offcanvas-title">Your Price Summary</h5>
+          <h5 className="offcanvas-title" id="mobileCheckoutTitle">
+            Review & Confirm
+          </h5>
           <button
             type="button"
             className="btn-close"
@@ -451,23 +560,51 @@ export default function BookingPage() {
             aria-label="Close"
           />
         </div>
-        <div className="offcanvas-body pt-0">
-          <SummaryCard
-            pkg={pkg}
-            nights={nights}
-            travelers={travelers}
-            extras={extras}
-            extrasTotal={extrasTotal}
-            baseTotal={baseTotal}
-            taxes={taxes}
-            grandTotal={grandTotal}
-            onReserve={handleReserve} // NEW
-            submitting={submitting} // NEW
-          />
+
+        <div className="offcanvas-body">
+          {/* Totals */}
+          <div className="border-top pt-3">
+            <div className="d-flex justify-content-between mb-2">
+              <span className="text-muted">Base</span>
+              <strong>${baseTotal}</strong>
+            </div>
+            <div className="small text-muted mb-3">
+              (${pkg.base} × {nights} × {Math.max(1, travelers)} guest
+              {travelers > 1 ? "s" : ""})
+            </div>
+
+            <div className="d-flex justify-content-between mb-2">
+              <span className="text-muted">Add-ons</span>
+              <strong>${extrasTotal}</strong>
+            </div>
+
+            <div className="d-flex justify-content-between mb-2">
+              <span className="text-muted">Taxes & fees (10%)</span>
+              <strong>${taxes}</strong>
+            </div>
+
+            <div className="d-flex justify-content-between align-items-center mt-3">
+              <span className="h6 mb-0">Total</span>
+              <span className="h4 mb-0">${grandTotal}</span>
+            </div>
+          </div>
+
+          {/* Confirm */}
+          <div className="d-grid mt-3">
+            <button
+              className="btn btn-success btn-lg"
+              onClick={handleReserve}
+              disabled={submitting}
+              aria-busy={submitting ? "true" : "false"}
+              data-bs-dismiss="offcanvas"
+            >
+              {submitting ? "Processing…" : "Confirm & Pay"}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Local styles */}
+      {/* local styles */}
     </main>
   );
 }

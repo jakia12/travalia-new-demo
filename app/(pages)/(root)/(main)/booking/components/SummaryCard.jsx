@@ -91,6 +91,11 @@ export default function SummaryCard({
     setTimeout(() => setOpen(false), 150);
   }
 
+  // ⬇️ NEW: close when clicking outside the dialog
+  function handleOverlayMouseDown(e) {
+    if (e.target === e.currentTarget) closeModal();
+  }
+
   // ---------------- Calculations (live) ----------------
   const modalNights = useMemo(() => {
     if (!checkIn || !checkOut) return 1;
@@ -198,6 +203,7 @@ export default function SummaryCard({
 
           <hr />
 
+          {/* (Totals block intentionally commented out per your file)
           <div className="d-flex justify-content-between mb-2">
             <span>Base</span>
             <strong>${baseTotal}</strong>
@@ -233,6 +239,7 @@ export default function SummaryCard({
             <span className="h6 mb-0">Total</span>
             <span className="h4 mb-0">${grandTotal}</span>
           </div>
+          */}
 
           <button
             type="button"
@@ -260,21 +267,30 @@ export default function SummaryCard({
           aria-modal="true"
           aria-labelledby="reserveModalTitle"
           onKeyDown={(e) => e.key === "Escape" && closeModal()}
+          onMouseDown={handleOverlayMouseDown} // ← close on outside click
         >
           <div className="reserve-backdrop" onClick={closeModal} />
 
-          <div className="reserve-dialog">
+          <div
+            className="reserve-dialog"
+            onMouseDown={(e) => e.stopPropagation()} // ← prevent outside close for dialog
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="btn-close"
+              aria-label="Close"
+              onClick={closeModal}
+            />
             {/* Header */}
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h4 id="reserveModalTitle" className="m-0">
+            <div className=" mb-3">
+              <h4
+                id="reserveModalTitle"
+                className="m-0 text-center"
+                style={{ textAlign: "center" }}
+              >
                 Review & Confirm
               </h4>
-              <button
-                type="button"
-                className="btn-close"
-                aria-label="Close"
-                onClick={closeModal}
-              />
             </div>
 
             {/* Form top */}
@@ -386,7 +402,8 @@ export default function SummaryCard({
                       className="form-check-label ms-2"
                       htmlFor="modalSunsetCruise"
                     >
-                      Sunset Cruise <span className="text-muted">(+ $60)</span>
+                      Sunset Cruise <br />
+                      <span className="text-muted">(+ $60)</span>
                     </label>
                   </div>
                 </div>
@@ -408,7 +425,8 @@ export default function SummaryCard({
                       className="form-check-label ms-2"
                       htmlFor="modalSpaCredit"
                     >
-                      Spa Credit <span className="text-muted">(+ $80)</span>
+                      Spa Credit <br />
+                      <span className="text-muted">(+ $80)</span>
                     </label>
                   </div>
                 </div>
@@ -430,7 +448,8 @@ export default function SummaryCard({
                       className="form-check-label ms-2"
                       htmlFor="modalWaterSports"
                     >
-                      Water Sports <span className="text-muted">(+ $50)</span>
+                      Water Sports
+                      <br /> <span className="text-muted">(+ $50)</span>
                     </label>
                   </div>
                 </div>
@@ -487,44 +506,6 @@ export default function SummaryCard({
           </div>
 
           {/* Tiny modal styles & transitions */}
-          <style jsx>{`
-            .reserve-modal {
-              position: fixed;
-              inset: 0;
-              z-index: 1050;
-              display: grid;
-              place-items: center;
-              pointer-events: none;
-            }
-            .reserve-backdrop {
-              position: absolute;
-              inset: 0;
-              background: rgba(0, 0, 0, 0.5);
-              opacity: 0;
-              transition: opacity 150ms ease;
-            }
-            .reserve-dialog {
-              position: relative;
-              width: min(960px, 92vw);
-              max-height: 88vh;
-              overflow: auto;
-              background: #fff;
-              border-radius: 16px;
-              padding: 20px;
-              box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-              transform: translateY(12px) scale(0.98);
-              opacity: 0;
-              transition: transform 180ms ease, opacity 180ms ease;
-              pointer-events: auto;
-            }
-            .reserve-modal.is-open .reserve-backdrop {
-              opacity: 1;
-            }
-            .reserve-modal.is-open .reserve-dialog {
-              transform: translateY(0) scale(1);
-              opacity: 1;
-            }
-          `}</style>
         </div>
       )}
     </>

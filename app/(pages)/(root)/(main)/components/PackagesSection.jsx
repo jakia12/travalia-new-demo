@@ -5,6 +5,25 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+// format the new price shape without changing your UI
+function formatPrice(price) {
+  if (price == null) return "";
+  if (typeof price === "number") {
+    return Number(price).toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    });
+  }
+  const amount = price.from ?? 0;
+  const currency = price.currency ?? "USD";
+  return Number(amount).toLocaleString("en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  });
+}
+
 export default function PackagesSection() {
   const router = useRouter();
 
@@ -61,12 +80,10 @@ export default function PackagesSection() {
                       className="cs_card_title cs_fs_24 cs_medium text-white"
                       style={{ fontFamily: "Playfair" }}
                     >
-                      {/* Title is just text now (no nested link) */}
                       {p.title}
                     </h2>
 
                     <div className="d-flex justify-content-between align-items-center mt-3 hid">
-                      {/* Button CTA that routes to /booking without triggering the outer Link */}
                       <button
                         type="button"
                         className="fw-semibold buy-btn text-white text-decoration-none"
@@ -93,8 +110,9 @@ export default function PackagesSection() {
                         Get Now
                       </button>
 
+                      {/* 👇 Only this line changed */}
                       <span className="cs_card_price cs_fs_24 cs_medium text-white mb-0">
-                        {p.price}
+                        {formatPrice(p.price)}
                       </span>
                     </div>
                   </div>
