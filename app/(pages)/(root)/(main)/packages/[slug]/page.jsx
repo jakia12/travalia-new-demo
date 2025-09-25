@@ -143,7 +143,7 @@ export default function PackageDetailPage({ params }) {
                 >
                   Overview
                 </h3>
-                <p className="mb-0 text-[17px] leading-9">
+                <p className="mb-0 text-[16px] leading-9">
                   {pkg.longDescription}
                 </p>
               </div>

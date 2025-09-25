@@ -41,14 +41,6 @@ export default function About() {
               </p>
             </div>
 
-            <a
-              href="tel:+1546378654"
-              className="mt-4 inline-block font-semibold text-[#2ecc71] hover:text-[#2ecc71]/80 text-lg "
-              style={{ color: "#2ecc71" }}
-            >
-              Speak to our Destination Experts at Direct Call +1 546 378 654
-            </a>
-
             <ul className="mt-6 space-y-3 text-slate-700 text-lg">
               {[
                 "All places and activities carefully curated",
@@ -74,10 +66,10 @@ export default function About() {
             </ul>
 
             <a
-              href="/about"
+              href="tel:+9607330000" // ← replace with your number
               className="mt-8 inline-flex items-center gap-2 rounded bg-[#2ecc71] px-6 py-3 font-semibold text-white shadow hover:bg-[#2ecc71]/80"
             >
-              Read More
+              Direct Call
               <svg
                 viewBox="0 0 24 24"
                 className="h-5 w-5"

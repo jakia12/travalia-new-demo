@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import toast from "react-hot-toast";
 
 // helpers
 function money(n, currency = "USD") {
@@ -40,28 +41,31 @@ export default function SidebarBookingCard({ pkg }) {
 
   const total = baseTotal + taxes;
 
+  // ✅ Show success toast before redirecting to Stripe
   async function handleBookNow() {
+    if (!pkg?.id) return alert("Missing package id.");
+
+    const nights = pkg.nights || Math.max((pkg.durationDays || 1) - 1, 1);
+
+    const payload = {
+      packageId: String(pkg.id),
+      title: String(pkg.title || pkg.name || "Selected Package"),
+      checkIn: null,
+      checkOut: null,
+      adults: pax,
+      children: 0,
+      nights,
+      addOns: [],
+      // If your route expects amounts, uncomment:
+      // currency,
+      // baseTotal,
+      // taxes,
+      // grandTotal: total,
+    };
+
+    const loadingId = toast.loading("Creating secure checkout…");
     try {
       setLoading(true);
-
-      const payload = {
-        packageId: pkg.id,
-        slug: pkg.slug,
-        title: pkg.title,
-        currency,
-        // minimal payload — dates can be collected later on a success page or via email
-        checkIn: null,
-        checkOut: null,
-        adults: pax,
-        children: 0,
-        nights: pkg.nights || Math.max((pkg.durationDays || 1) - 1, 1),
-        extras: {},
-        baseTotal,
-        extrasTotal: 0,
-        taxes,
-        grandTotal: total,
-      };
-
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -69,13 +73,21 @@ export default function SidebarBookingCard({ pkg }) {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Payment init failed");
+      toast.dismiss(loadingId);
 
-      if (data?.url) window.location.href = data.url;
-      else throw new Error("No checkout URL returned");
+      if (!res.ok || !data?.url) {
+        throw new Error(data?.error || "Failed to start checkout");
+      }
+
+      // 🎉 Success message, then redirect
+      toast.success(`Great news! Your  booking is ready `);
+
+      setTimeout(() => {
+        window.location.href = data.url; // Stripe Checkout
+      }, 900);
     } catch (e) {
-      alert(e.message);
-    } finally {
+      toast.dismiss(loadingId);
+      toast.error(e.message || "Something went wrong. Please try again.");
       setLoading(false);
     }
   }
@@ -170,8 +182,6 @@ export default function SidebarBookingCard({ pkg }) {
                 : pkg.cancellationPolicy}
             </div>
           ) : null}
-
-          {/* Totals preview */}
         </div>
       </div>
 
@@ -199,10 +209,9 @@ export default function SidebarBookingCard({ pkg }) {
           <button
             type="button"
             onClick={handleBookNow}
-            className={`btn btn-dark btn-lg rounded-pill ${
-              loading ? "disabled" : ""
-            }`}
+            className="btn btn-dark btn-lg rounded-pill"
             style={{ background: "#2ecc71", border: "none" }}
+            disabled={loading}
             aria-disabled={loading ? "true" : "false"}
             aria-busy={loading ? "true" : "false"}
           >

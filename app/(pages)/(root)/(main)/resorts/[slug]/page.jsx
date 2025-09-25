@@ -2,6 +2,7 @@
 import { getResortBySlug, resorts } from "@/data/resorts";
 import Image from "next/image";
 import Link from "next/link";
+import PriceBook from "../components/PriceBook";
 
 // Create static pages for all resorts
 export async function generateStaticParams() {
@@ -97,12 +98,10 @@ function AtAGlance({ resort }) {
   return (
     <div className="card border-0 shadow-sm mb-4">
       <div className="card-body">
-        <SectionHeader
-          id="overview"
-          title="Overview"
-          style={{ BiFontFamily: "playfair" }}
-        />
-        <p className="mb-3">{resort.description}</p>
+        <SectionHeader id="overview" title="Overview" />
+        <p className="mb-3" style={{ fontSize: "16px" }}>
+          {resort.description}
+        </p>
         {highlights.length ? (
           <>
             <h6 className="text-uppercase text-muted small mb-2">Highlights</h6>
@@ -641,10 +640,10 @@ export default function ResortDetailPage({ params }) {
     // { id: "faq", label: "FAQs" },
     // { id: "more", label: "More" },
   ];
-  // ---- Price Snapshot calcs (must be inside the component, after `resort` exists)
+
+  // ---- Price Snapshot calcs
   const DEFAULT_NIGHTS = 3;
   const DEFAULT_GUESTS = 2;
-
   const nights = DEFAULT_NIGHTS;
   const guests = DEFAULT_GUESTS;
   const baseRate = resort?.priceFrom ?? 0;
@@ -660,7 +659,6 @@ export default function ResortDetailPage({ params }) {
 
   const baseTotal = baseRate * nights * guests;
   const greenTaxTotal = greenTaxPer * nights * guests;
-  // keep this aligned with your booking logic
   const taxes10 = Math.round(baseTotal * 0.1);
   const grandTotal = baseTotal + greenTaxTotal + taxes10;
 
@@ -673,212 +671,178 @@ export default function ResortDetailPage({ params }) {
 
   return (
     <>
-      {/* Top banner */}
-      <section
-        className="text-white d-flex align-items-center"
-        style={{
-          backgroundImage: `linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)), url(${resort.img})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          minHeight: "44vh",
-        }}
-      >
-        <div className="container text-center">
-          <p
-            className="text-uppercase mb-2"
-            style={{ letterSpacing: ".12em", color: "#9AE6B4" }}
-          >
-            {resort.island}
-          </p>
-          <h1 className="display-5 fw-bold">{resort.name}</h1>
-          <p className="lead mb-0">{resort.short}</p>
-        </div>
-      </section>
+      <div className="resort-text-16">
+        {/* Top banner */}
+        <section
+          className="text-white d-flex align-items-center"
+          style={{
+            backgroundImage: `linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)), url(${resort.img})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            minHeight: "44vh",
+          }}
+        >
+          <div className="container text-center">
+            <p
+              className="text-uppercase mb-2"
+              style={{ letterSpacing: ".12em", color: "#9AE6B4" }}
+            >
+              {resort.island}
+            </p>
+            <h1 className="display-5 fw-bold">{resort.name}</h1>
+            <p className="lead mb-0">{resort.short}</p>
+          </div>
+        </section>
 
-      <main className="container py-5">
-        {/* Breadcrumb */}
-        <nav aria-label="breadcrumb" className="mb-3">
-          <ol className="breadcrumb mb-0">
-            <li className="breadcrumb-item">
-              <Link href="/resorts" className="text-decoration-none">
-                Resorts
-              </Link>
-            </li>
-            <li className="breadcrumb-item active" aria-current="page">
-              {resort.name}
-            </li>
-          </ol>
-        </nav>
+        <main className="container py-5">
+          {/* Breadcrumb */}
+          <nav aria-label="breadcrumb" className="mb-3">
+            <ol className="breadcrumb mb-0">
+              <li className="breadcrumb-item">
+                <Link href="/resorts" className="text-decoration-none">
+                  Resorts
+                </Link>
+              </li>
+              <li className="breadcrumb-item active" aria-current="page">
+                {resort.name}
+              </li>
+            </ol>
+          </nav>
 
-        {/* Quick TOC */}
-        <div className="card border-0 shadow-sm mb-4">
-          <div className="card-body py-2">
-            <div className="d-flex flex-wrap gap-2">
-              {toc.map((t) => (
-                <a
-                  key={t.id}
-                  href={`#${t.id}`}
-                  className="btn btn-sm btn-outline-dark"
-                >
-                  {t.label}
-                </a>
-              ))}
-              <div className="ms-auto d-none d-md-inline">
-                <Link href="/booking" className="btn btn-success">
-                  Check Availability
+          {/* Quick TOC */}
+          <div className="card border-0 shadow-sm mb-4">
+            <div className="card-body py-2">
+              <div className="d-flex flex-wrap gap-2">
+                {toc.map((t) => (
+                  <a
+                    key={t.id}
+                    href={`#${t.id}`}
+                    className="btn btn-sm btn-outline-dark"
+                  >
+                    {t.label}
+                  </a>
+                ))}
+                <div className="ms-auto d-none d-md-inline">
+                  <Link href="/booking" className="btn btn-success">
+                    Check Availability
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Grid */}
+          <div className="row g-4">
+            {/* Left content */}
+            <div className="col-lg-8">
+              {/* Gallery */}
+              <div className="row g-3 mb-4">
+                {resort.gallery.map((src, i) => (
+                  <div key={src} className={i === 0 ? "col-12" : "col-6"}>
+                    <div
+                      className="position-relative rounded-4 overflow-hidden shadow-sm"
+                      style={{ aspectRatio: i === 0 ? "16/9" : "4/3" }}
+                    >
+                      <Image
+                        src={src}
+                        alt={`${resort.name} photo ${i + 1}`}
+                        fill
+                        className="object-fit-cover"
+                        sizes={
+                          i === 0 ? "(min-width: 992px) 66vw, 100vw" : "33vw"
+                        }
+                        priority={i === 0}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Sections */}
+              <AtAGlance resort={resort} />
+              <Amenities resort={resort} />
+              <Rooms resort={resort} />
+              <Dining resort={resort} />
+              <Wellness resort={resort} />
+              <Activities resort={resort} />
+              {/* <Transfers resort={resort} />
+              <PoliciesFees resort={resort} />
+              <FAQs resort={resort} />
+              <Extras resort={resort} /> */}
+            </div>
+
+            {/* Right sidebar */}
+            <div className="col-lg-4">
+              <div className="position-sticky" style={{ top: "90px" }}>
+                {/* Resort facts */}
+                <div className="card border-0 shadow-sm mb-3">
+                  <div className="card-body">
+                    <h5
+                      className="fw-semibold mb-3"
+                      style={{ fontFamily: "playfair" }}
+                    >
+                      Resort Facts
+                    </h5>
+                    <dl className="row small mb-0">
+                      <InfoRow label="Island">{resort.island}</InfoRow>
+                      <InfoRow label="Rating">
+                        <StarRating value={resort.rating} />{" "}
+                        <span className="ms-1">{resort.rating}</span>
+                      </InfoRow>
+                      <InfoRow label="Starting From">
+                        ${resort.priceFrom} / night
+                      </InfoRow>
+                      <InfoRow label="Tags">
+                        <BadgeList items={resort.tags} />
+                      </InfoRow>
+                    </dl>
+                  </div>
+                </div>
+
+                {/* Price Snapshot */}
+                <div className="card border-0 shadow-sm mb-3">
+                  <PriceBook resort={resort} />
+                </div>
+
+                <Link href="/resorts" className="btn btn-outline-dark mt-3">
+                  ← Back to all resorts
                 </Link>
               </div>
             </div>
           </div>
-        </div>
+        </main>
 
-        {/* Grid */}
-        <div className="row g-4">
-          {/* Left content */}
-          <div className="col-lg-8">
-            {/* Gallery */}
-            <div className="row g-3 mb-4">
-              {resort.gallery.map((src, i) => (
-                <div key={src} className={i === 0 ? "col-12" : "col-6"}>
-                  <div
-                    className="position-relative rounded-4 overflow-hidden shadow-sm"
-                    style={{ aspectRatio: i === 0 ? "16/9" : "4/3" }}
-                  >
-                    <Image
-                      src={src}
-                      alt={`${resort.name} photo ${i + 1}`}
-                      fill
-                      className="object-fit-cover"
-                      sizes={
-                        i === 0 ? "(min-width: 992px) 66vw, 100vw" : "33vw"
-                      }
-                      priority={i === 0}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* JSON-LD (basic) */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Resort",
+              name: resort.name,
+              description: resort.short || resort.description,
+              address: {
+                "@type": "PostalAddress",
+                addressCountry: "MV",
+                streetAddress: resort?.contact?.address || "",
+              },
+              starRating: {
+                "@type": "Rating",
+                ratingValue: resort.rating,
+                bestRating: "5",
+              },
+              image: resort.gallery?.length ? resort.gallery : [resort.img],
+              url: `https://example.com/resorts/${resort.slug}`,
+              amenityFeature: (resort.amenities || []).map((a) => ({
+                "@type": "LocationFeatureSpecification",
+                name: a,
+              })),
+            }),
+          }}
+        />
+      </div>
 
-            {/* Sections */}
-            <AtAGlance resort={resort} />
-            <Amenities resort={resort} />
-            <Rooms resort={resort} />
-            <Dining resort={resort} />
-            <Wellness resort={resort} />
-            <Activities resort={resort} />
-            {/* <Transfers resort={resort} />
-            <PoliciesFees resort={resort} />
-            <FAQs resort={resort} />
-            <Extras resort={resort} /> */}
-          </div>
-
-          {/* Right sidebar */}
-          <div className="col-lg-4">
-            <div className="position-sticky" style={{ top: "90px" }}>
-              {/* Resort facts */}
-              <div className="card border-0 shadow-sm mb-3">
-                <div className="card-body">
-                  <h5
-                    className="fw-semibold mb-3"
-                    style={{ fontFamily: "playfair" }}
-                  >
-                    Resort Facts
-                  </h5>
-                  <dl className="row small mb-0">
-                    <InfoRow label="Island">{resort.island}</InfoRow>
-                    <InfoRow label="Rating">
-                      <StarRating value={resort.rating} />{" "}
-                      <span className="ms-1">{resort.rating}</span>
-                    </InfoRow>
-                    <InfoRow label="Starting From">
-                      ${resort.priceFrom} / night
-                    </InfoRow>
-                    <InfoRow label="Tags">
-                      <BadgeList items={resort.tags} />
-                    </InfoRow>
-                  </dl>
-                </div>
-              </div>
-
-              {/* Price Snapshot (no form) */}
-              <div className="card border-0 shadow-sm mb-3">
-                <div className="card-body">
-                  <h5
-                    className="fw-semibold mb-2"
-                    style={{ fontFamily: "playfair" }}
-                  >
-                    Price Snapshot
-                  </h5>
-                  <div className="small text-muted mb-2">
-                    {nights} night{nights > 1 ? "s" : ""} · {guests} guest
-                    {guests > 1 ? "s" : ""} · from {fmt(baseRate)}/night
-                  </div>
-
-                  <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Base</span>
-                    <strong>{fmt(baseTotal)}</strong>
-                  </div>
-                  <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Green Tax</span>
-                    <strong>{fmt(greenTaxTotal)}</strong>
-                  </div>
-                  <div className="d-flex justify-content-between mb-2">
-                    <span className="text-muted">Taxes & fees (10%)</span>
-                    <strong>{fmt(taxes10)}</strong>
-                  </div>
-
-                  <div className="d-flex justify-content-between align-items-center mt-2">
-                    <span className="h6 mb-0">Total</span>
-                    <span className="h4 mb-0">{fmt(grandTotal)}</span>
-                  </div>
-
-                  <div className="d-grid mt-3">
-                    <Link
-                      href={`/booking?resort=${resort.slug}`}
-                      className="btn btn-success btn-lg"
-                    >
-                      Book Now · {fmt(grandTotal)}
-                    </Link>
-                  </div>
-                </div>
-              </div>
-
-              <Link href="/resorts" className="btn btn-outline-dark mt-3">
-                ← Back to all resorts
-              </Link>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* JSON-LD (basic) */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Resort",
-            name: resort.name,
-            description: resort.short || resort.description,
-            address: {
-              "@type": "PostalAddress",
-              addressCountry: "MV",
-              streetAddress: resort?.contact?.address || "",
-            },
-            starRating: {
-              "@type": "Rating",
-              ratingValue: resort.rating,
-              bestRating: "5",
-            },
-            image: resort.gallery?.length ? resort.gallery : [resort.img],
-            url: `https://example.com/resorts/${resort.slug}`,
-            amenityFeature: (resort.amenities || []).map((a) => ({
-              "@type": "LocationFeatureSpecification",
-              name: a,
-            })),
-          }),
-        }}
-      />
+      {/* Scoped style: force p and small to 16px on this page only */}
     </>
   );
 }
