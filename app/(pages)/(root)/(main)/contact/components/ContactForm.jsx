@@ -47,9 +47,10 @@ export default function ContactForm() {
     return true;
   };
 
+  const firstErrorKey = (errs) => Object.keys(errs || {})[0];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const parsed = schema.safeParse(form);
     if (!parsed.success) {
       const fieldErrors = {};
@@ -59,14 +60,12 @@ export default function ContactForm() {
       }
       setErrors(fieldErrors);
       toast.error("Please fix the highlighted fields.");
-      const first = Object.keys(fieldErrors)[0];
+      const first = firstErrorKey(fieldErrors);
       if (first) document.getElementById(`cf_${first}`)?.focus();
       return;
     }
 
     setSubmitting(true);
-
-    // simulate sending (replace with real API call)
     const sendPromise = new Promise((resolve) => setTimeout(resolve, 900));
 
     try {
@@ -76,16 +75,21 @@ export default function ContactForm() {
         error: "Something went wrong. Please try again.",
       });
       setForm({ name: "", email: "", subject: "", message: "" });
+      setErrors({});
     } finally {
       setSubmitting(false);
     }
   };
 
+  const fieldClass = (hasError) =>
+    `cs_form_field cs_radius_5 cs_white_bg${hasError ? " is-invalid" : ""}`;
+
+  const firstErr = firstErrorKey(errors);
+
   return (
     <section className="cs_gray_bg">
       <div className="cs_height_135 cs_height_lg_75" />
       <div className="container">
-        {/* Section heading */}
         <div className="cs_section_heading cs_style_1 text-center">
           <h3
             className="cs_section_title_up cs_ternary_font cs_accent_color cs_normal cs_fs_24"
@@ -103,33 +107,48 @@ export default function ContactForm() {
 
         <div className="cs_height_55 cs_height_lg_40" />
 
-        {/* Contact Form */}
+        {firstErr && (
+          <div
+            className="alert alert-danger mb-4"
+            role="alert"
+            aria-live="polite"
+          >
+            Please correct the highlighted fields below.
+          </div>
+        )}
+
         <form
           className="cs_contact_form row cs_gap_y_24"
           noValidate
           onSubmit={handleSubmit}
         >
+          {/* Name */}
           <div className="col-lg-6">
             <div className="cs_input_field">
+              <label htmlFor="cf_name" className="form-label">
+                Full Name
+              </label>
               <input
                 id="cf_name"
                 type="text"
                 placeholder="Enter Your Name"
-                className="cs_form_field cs_radius_5"
+                className={fieldClass(!!errors.name).replace(
+                  " cs_white_bg",
+                  ""
+                )}
                 value={form.name}
                 onChange={(e) => setField("name", e.target.value)}
                 onBlur={() => validateField("name")}
                 aria-invalid={!!errors.name}
                 aria-describedby={errors.name ? "cf_name_err" : undefined}
               />
-              <span>
+              {/* <span>
                 <i className="fa-regular fa-user"></i>
-              </span>
+              </span> */}
               {errors.name && (
                 <small
                   id="cf_name_err"
-                  style={{ color: "#e74c3c" }}
-                  className="d-block mt-1"
+                  className="invalid-feedback d-block mt-1"
                 >
                   {errors.name}
                 </small>
@@ -137,27 +156,30 @@ export default function ContactForm() {
             </div>
           </div>
 
+          {/* Email */}
           <div className="col-lg-6">
             <div className="cs_input_field">
+              <label htmlFor="cf_email" className="form-label">
+                Email Address
+              </label>
               <input
                 id="cf_email"
                 type="email"
                 placeholder="Enter Your E-Mail"
-                className="cs_form_field cs_radius_5 cs_white_bg"
+                className={fieldClass(!!errors.email)}
                 value={form.email}
                 onChange={(e) => setField("email", e.target.value)}
                 onBlur={() => validateField("email")}
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? "cf_email_err" : undefined}
               />
-              <span>
+              {/* <span>
                 <i className="fa-regular fa-envelope"></i>
-              </span>
+              </span> */}
               {errors.email && (
                 <small
                   id="cf_email_err"
-                  style={{ color: "#e74c3c" }}
-                  className="d-block mt-1"
+                  className="invalid-feedback d-block mt-1"
                 >
                   {errors.email}
                 </small>
@@ -165,12 +187,16 @@ export default function ContactForm() {
             </div>
           </div>
 
+          {/* Subject */}
           <div className="col-lg-12">
+            <label htmlFor="cf_subject" className="form-label">
+              Subject
+            </label>
             <input
               id="cf_subject"
               type="text"
-              placeholder="Select Subjects"
-              className="cs_form_field cs_radius_5 cs_white_bg"
+              placeholder="Select Subject"
+              className={fieldClass(!!errors.subject)}
               value={form.subject}
               onChange={(e) => setField("subject", e.target.value)}
               onBlur={() => validateField("subject")}
@@ -180,19 +206,22 @@ export default function ContactForm() {
             {errors.subject && (
               <small
                 id="cf_subject_err"
-                style={{ color: "#e74c3c" }}
-                className="d-block mt-1"
+                className="invalid-feedback d-block mt-1"
               >
                 {errors.subject}
               </small>
             )}
           </div>
 
+          {/* Message */}
           <div className="col-lg-12">
+            <label htmlFor="cf_message" className="form-label">
+              Message
+            </label>
             <textarea
               id="cf_message"
               rows={5}
-              className="cs_form_field cs_radius_5 cs_white_bg"
+              className={fieldClass(!!errors.message)}
               placeholder="Write Message..."
               value={form.message}
               onChange={(e) => setField("message", e.target.value)}
@@ -203,14 +232,14 @@ export default function ContactForm() {
             {errors.message && (
               <small
                 id="cf_message_err"
-                style={{ color: "#e74c3c" }}
-                className="d-block mt-1"
+                className="invalid-feedback d-block mt-1"
               >
                 {errors.message}
               </small>
             )}
           </div>
 
+          {/* Submit */}
           <div className="col-lg-12 text-center">
             <button
               type="submit"

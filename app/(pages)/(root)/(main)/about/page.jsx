@@ -2,7 +2,6 @@ import About from "../components/About";
 import NewsletterBanner from "../components/NewsletterBanner";
 import AboutBanner from "./components/ABoutBanner";
 import CompanySection from "./components/CompanySection";
-import TravelProOffer from "./components/TravelProOffer";
 import WhyChooseUs from "./components/WhyChoose";
 
 const AboutPage = () => {
@@ -11,7 +10,7 @@ const AboutPage = () => {
       <AboutBanner />
       <About />
       <CompanySection />
-      <TravelProOffer />
+      {/* <TravelProOffer /> */}
       <WhyChooseUs />
       <NewsletterBanner />
     </>

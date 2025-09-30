@@ -2,43 +2,80 @@
 import { getResortBySlug, resorts } from "@/data/resorts";
 import Image from "next/image";
 import Link from "next/link";
-import PriceBook from "../components/PriceBook";
+import { PiCaretDoubleLeftBold } from "react-icons/pi";
+import BookingWidget from "../components/BookingWidget";
 
-// Create static pages for all resorts
+/* ---------------- helpers (server-safe) ---------------- */
+function num(x) {
+  if (x == null) return 0;
+  if (typeof x === "number" && isFinite(x)) return x;
+  if (typeof x === "string") {
+    const n = Number(x.replace(/[^0-9.-]+/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+/* ------------- static params + SEO ------------- */
 export async function generateStaticParams() {
   return resorts.map((r) => ({ slug: r.slug }));
 }
 
-// SEO from API (falls back gracefully)
 export async function generateMetadata({ params }) {
-  const resort = getResortBySlug(params.slug);
-  if (!resort) {
-    return {
-      title: "Resort not found",
-      description: "The resort you requested could not be found.",
-    };
-  }
-  return {
-    title: resort?.seo?.seoTitle || `${resort.name} | Maldives Resort`,
-    description:
+  try {
+    const { slug } = params ?? {};
+    const resort =
+      typeof getResortBySlug === "function" ? getResortBySlug(slug) : null;
+
+    if (!resort) {
+      return {
+        title: "Resort not found",
+        description: "The resort you requested could not be found.",
+        alternates: { canonical: `/resorts/${slug || ""}` },
+      };
+    }
+
+    const title =
+      resort?.seo?.seoTitle ||
+      (resort?.name ? `${resort.name} | Maldives Resort` : "Resort");
+
+    const description =
       resort?.seo?.seoDescription ||
-      resort.short ||
-      "Explore detailed information, rooms, dining, transfers, and policies.",
-    alternates: { canonical: `/resorts/${resort.slug}` },
-    openGraph: {
-      title: resort?.seo?.seoTitle || resort.name,
-      description:
-        resort?.seo?.seoDescription ||
-        resort.short ||
-        "Explore detailed resort information.",
-      images: resort.gallery?.length
-        ? resort.gallery.map((src) => ({ url: src }))
-        : [{ url: resort.img }],
-      type: "website",
-    },
-  };
+      resort?.short ||
+      "Explore detailed information, rooms, dining, transfers, and policies.";
+
+    const gallery = Array.isArray(resort?.gallery)
+      ? resort.gallery.filter(Boolean)
+      : [];
+    const ogImages = gallery.length
+      ? gallery.map((src) => ({ url: String(src) }))
+      : resort?.img
+      ? [{ url: String(resort.img) }]
+      : undefined;
+
+    return {
+      title,
+      description,
+      alternates: { canonical: `/resorts/${resort.slug || slug || ""}` },
+      openGraph: {
+        title,
+        description,
+        images: ogImages,
+        type: "website",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: ogImages?.[0]?.url ? [ogImages[0].url] : undefined,
+      },
+    };
+  } catch {
+    return { title: "Resort", description: "Explore resort details." };
+  }
 }
 
+/* ---------------- small UI helpers ---------------- */
 function StarRating({ value = 0 }) {
   const full = Math.floor(value);
   const half = value - full >= 0.5;
@@ -55,7 +92,6 @@ function StarRating({ value = 0 }) {
     </span>
   );
 }
-
 function BadgeList({ items = [] }) {
   if (!items?.length) return null;
   return (
@@ -68,31 +104,29 @@ function BadgeList({ items = [] }) {
     </div>
   );
 }
-
 function InfoRow({ label, children }) {
   return (
     <>
-      <dt className="col-5 text-muted">{label}</dt>
+      <dt className="col-5 text-black">{label}</dt>
       <dd className="col-7 mb-2">{children}</dd>
     </>
   );
 }
-
 function SectionHeader({ id, title, subtitle }) {
   return (
     <header id={id} className="mb-3">
       <h2 className="h4 fw-semibold mb-1" style={{ fontFamily: "playfair" }}>
         {title}
       </h2>
-      {subtitle ? <p className="text-muted mb-0">{subtitle}</p> : null}
+      {subtitle ? <p className="text-black mb-0">{subtitle}</p> : null}
     </header>
   );
 }
-
 function Divider() {
   return <hr className="my-4" />;
 }
 
+/* ---------------- sections ---------------- */
 function AtAGlance({ resort }) {
   const highlights = resort?.highlights?.highlights || [];
   return (
@@ -104,7 +138,12 @@ function AtAGlance({ resort }) {
         </p>
         {highlights.length ? (
           <>
-            <h6 className="text-uppercase text-muted small mb-2">Highlights</h6>
+            <h6
+              className="text-uppercase  small mb-2 font-bold"
+              style={{ fontFamily: "playfair" }}
+            >
+              Highlights
+            </h6>
             <ul className="list-unstyled mb-0">
               {highlights.map((h) => (
                 <li key={h} className="mb-1">
@@ -122,7 +161,6 @@ function AtAGlance({ resort }) {
     </div>
   );
 }
-
 function Amenities({ resort }) {
   return (
     <div className="card border-0 shadow-sm mb-4">
@@ -133,7 +171,6 @@ function Amenities({ resort }) {
     </div>
   );
 }
-
 function Dining({ resort }) {
   const r = resort?.dining?.restaurants || [];
   const b = resort?.dining?.bars || [];
@@ -152,10 +189,10 @@ function Dining({ resort }) {
                   {x.cuisine ? (
                     <>
                       {" "}
-                      — <span className="text-muted">{x.cuisine}</span>
+                      — <span className="text-black">{x.cuisine}</span>
                     </>
                   ) : null}
-                  <div className="small text-muted">
+                  <div className="small text-black">
                     {[x.hours, x.location, x.dressCode]
                       .filter(Boolean)
                       .join(" · ")}
@@ -174,7 +211,7 @@ function Dining({ resort }) {
                 <li key={x.name} className="mb-1">
                   <strong>{x.name}</strong>
                   {x.hours ? (
-                    <span className="text-muted"> — {x.hours}</span>
+                    <span className="text-black"> — {x.hours}</span>
                   ) : null}
                 </li>
               ))}
@@ -185,7 +222,6 @@ function Dining({ resort }) {
     </div>
   );
 }
-
 function Wellness({ resort }) {
   const spa = resort?.wellness?.spa;
   const fitness = resort?.wellness?.fitness || [];
@@ -199,7 +235,7 @@ function Wellness({ resort }) {
           <div className="mb-3">
             <h6 className="mb-1">{spa.name || "Resort Spa"}</h6>
             {spa.highlights?.length ? (
-              <ul className="small text-muted mb-0">
+              <ul className="small text-black mb-0">
                 {spa.highlights.map((h) => (
                   <li key={h}>{h}</li>
                 ))}
@@ -216,7 +252,9 @@ function Wellness({ resort }) {
         {programs.length ? (
           <>
             <Divider />
-            <h6 className="mb-1">Wellness Programs</h6>
+            <h6 className="mb-1" style={{ fontFamily: "playfair" }}>
+              Wellness Programs
+            </h6>
             <BadgeList items={programs} />
           </>
         ) : null}
@@ -224,7 +262,6 @@ function Wellness({ resort }) {
     </div>
   );
 }
-
 function Activities({ resort }) {
   const onWater = resort?.activities?.onWater || [];
   const onLand = resort?.activities?.onLand || [];
@@ -243,7 +280,9 @@ function Activities({ resort }) {
         {onLand.length ? (
           <>
             <Divider />
-            <h6 className="mb-1">On Land</h6>
+            <h6 className="mb-1" style={{ fontFamily: "playfair" }}>
+              On Land
+            </h6>
             <BadgeList items={onLand} />
           </>
         ) : null}
@@ -258,7 +297,6 @@ function Activities({ resort }) {
     </div>
   );
 }
-
 function Rooms({ resort }) {
   const rooms = resort?.rooms || [];
   if (!rooms.length) return null;
@@ -283,7 +321,7 @@ function Rooms({ resort }) {
                 </div>
                 <div className="card-body">
                   <h6 className="mb-1">{room.name}</h6>
-                  <div className="small text-muted mb-2">
+                  <div className="small text-black mb-2">
                     {room.category?.toUpperCase()} ·{" "}
                     {room.sizeSqm ? `${room.sizeSqm} m² · ` : ""}
                     Sleeps {room.maxOccupancy} · {room.view}
@@ -296,7 +334,7 @@ function Rooms({ resort }) {
                     </div>
                   )}
                   {!!room.features?.length && (
-                    <ul className="small text-muted mb-0">
+                    <ul className="small text-black mb-0">
                       {room.features.slice(0, 4).map((f) => (
                         <li key={f}>{f}</li>
                       ))}
@@ -316,305 +354,7 @@ function Rooms({ resort }) {
   );
 }
 
-function Transfers({ resort }) {
-  const t = resort?.transfers;
-  const list = t?.details || [];
-  if (!list.length) return null;
-
-  const iconFor = (mode) => {
-    if (mode === "speedboat") return "bi bi-water";
-    if (mode === "seaplane") return "bi bi-airplane";
-    if (mode === "domestic+speedboat") return "bi bi-airplane-engines";
-    if (mode === "yacht") return "bi bi-ship";
-    return "bi bi-geo-alt";
-  };
-
-  const fmtCost = (c) =>
-    !c
-      ? null
-      : [
-          c.adult != null ? `Adult $${c.adult}` : null,
-          c.child != null ? `Child $${c.child}` : null,
-          c.infant != null ? `Infant $${c.infant}` : null,
-        ]
-          .filter(Boolean)
-          .join(" / ");
-
-  return (
-    <div className="card border-0 shadow-sm mb-4">
-      <div className="card-body">
-        <SectionHeader
-          id="transfers"
-          title="Transfers"
-          subtitle={`Arrive via ${
-            t.airport || "MLE"
-          } · Resort concierge will coordinate timings`}
-        />
-        <ul className="list-group list-group-flush">
-          {list.map((x, i) => (
-            <li key={i} className="list-group-item px-0">
-              <div className="d-flex flex-wrap justify-content-between align-items-start">
-                <div className="me-3">
-                  <div className="fw-semibold">
-                    <i className={`${iconFor(x.mode)} me-2`} />
-                    {x.mode.replace("+", " + ").toUpperCase()}
-                  </div>
-                  <div className="small text-muted">
-                    {x.durationMinutes
-                      ? `${x.durationMinutes} min`
-                      : "Duration varies"}{" "}
-                    · {x.schedule}
-                  </div>
-                  {x.note && <div className="small text-muted">{x.note}</div>}
-                </div>
-                <div className="text-end">
-                  {fmtCost(x.costUSD) ? (
-                    <span className="badge text-bg-light border">
-                      {fmtCost(x.costUSD)} · roundtrip
-                    </span>
-                  ) : (
-                    <span className="badge text-bg-light border">
-                      Rates on request
-                    </span>
-                  )}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-        {t?.note ? <div className="small text-muted mt-2">{t.note}</div> : null}
-      </div>
-    </div>
-  );
-}
-
-function PoliciesFees({ resort }) {
-  const p = resort?.policies || {};
-  const f = resort?.fees || {};
-  const mandatory = f?.mandatory || [];
-  const optional = f?.optional || [];
-
-  return (
-    <div className="card border-0 shadow-sm mb-4">
-      <div className="card-body">
-        <SectionHeader id="policies" title="Policies & Fees" />
-        <div className="row g-4">
-          <div className="col-12 col-lg-6">
-            <h6 className="mb-2">House Rules</h6>
-            <dl className="row small mb-0">
-              <InfoRow label="Check-in">{p.checkInFrom || "—"}</InfoRow>
-              <InfoRow label="Check-out">{p.checkOutUntil || "—"}</InfoRow>
-              <InfoRow label="Cancellation">
-                {p.cancellation || "Varies by rate"}
-              </InfoRow>
-              <InfoRow label="Children">
-                {p.children?.allowed ? "Allowed" : "Not allowed"}
-                {p.children?.crib ? ` · Crib: ${p.children.crib}` : ""}
-                {p.children?.extraBed
-                  ? ` · Extra bed: ${p.children.extraBed}`
-                  : ""}
-              </InfoRow>
-              <InfoRow label="Pets">
-                {p.pets?.allowed ? "Allowed" : "Not allowed"}
-                {p.pets?.note ? ` · ${p.pets.note}` : ""}
-              </InfoRow>
-              <InfoRow label="Smoking">{p.smoking || "—"}</InfoRow>
-              <InfoRow label="Parties">{p.party || "—"}</InfoRow>
-              <InfoRow label="Payments">
-                <BadgeList items={p.paymentMethods || []} />
-              </InfoRow>
-            </dl>
-          </div>
-
-          <div className="col-12 col-lg-6">
-            <h6 className="mb-2">Fees & Taxes</h6>
-            {!!mandatory.length && (
-              <>
-                <div className="small text-uppercase text-muted mb-1">
-                  Mandatory
-                </div>
-                <ul className="small mb-3">
-                  {mandatory.map((m, i) => (
-                    <li key={`m${i}`}>
-                      <strong>{m.label}</strong> — {m.amount}
-                      {m.per ? `, ${m.per}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {!!optional.length && (
-              <>
-                <div className="small text-uppercase text-muted mb-1">
-                  Optional
-                </div>
-                <ul className="small mb-0">
-                  {optional.map((o, i) => (
-                    <li key={`o${i}`}>
-                      <strong>{o.label}</strong>
-                      {o.amount ? ` — ${o.amount}` : ""}
-                      {o.per ? `, ${o.per}` : ""}
-                      {o.note ? ` · ${o.note}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Extras({ resort }) {
-  const near = resort?.nearby?.list || [];
-  const access = resort?.accessibility?.list || [];
-  const sust = resort?.sustainability || {};
-  const langs = resort?.languages?.languagesSpoken || [];
-  const contact = resort?.contact || {};
-  if (
-    !near.length &&
-    !access.length &&
-    !langs.length &&
-    !contact.website &&
-    !sust?.certifications?.length &&
-    !sust?.practices?.length
-  )
-    return null;
-
-  return (
-    <div className="card border-0 shadow-sm mb-4">
-      <div className="card-body">
-        <SectionHeader id="more" title="Good to Know" />
-        <div className="row g-4">
-          {!!near.length && (
-            <div className="col-12 col-md-6">
-              <h6 className="mb-2">What’s Nearby</h6>
-              <ul className="small mb-0">
-                {near.map((n) => (
-                  <li key={n.name}>
-                    {n.name} {n.distance ? `— ${n.distance}` : ""}{" "}
-                    {n.type ? `(${n.type})` : ""}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {!!access.length && (
-            <div className="col-12 col-md-6">
-              <h6 className="mb-2">Accessibility</h6>
-              <ul className="small mb-0">
-                {access.map((a) => (
-                  <li key={a}>{a}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {(sust?.certifications?.length || sust?.practices?.length) && (
-            <div className="col-12 col-md-6">
-              <h6 className="mb-2">Sustainability</h6>
-              {sust?.certifications?.length ? (
-                <>
-                  <div className="small text-muted">Certifications</div>
-                  <BadgeList items={sust.certifications} />
-                </>
-              ) : null}
-              {sust?.practices?.length ? (
-                <>
-                  <Divider />
-                  <div className="small text-muted">Practices</div>
-                  <BadgeList items={sust.practices} />
-                </>
-              ) : null}
-            </div>
-          )}
-          {(langs.length ||
-            contact.website ||
-            contact.email ||
-            contact.phone) && (
-            <div className="col-12 col-md-6">
-              <h6 className="mb-2">Languages & Contact</h6>
-              {langs.length ? (
-                <div className="mb-2">
-                  <div className="small text-muted">Languages spoken</div>
-                  <BadgeList items={langs} />
-                </div>
-              ) : null}
-              <dl className="row small mb-0">
-                {contact.website && (
-                  <InfoRow label="Website">
-                    <a
-                      href={contact.website}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-decoration-none"
-                    >
-                      {contact.website}
-                    </a>
-                  </InfoRow>
-                )}
-                {contact.email && (
-                  <InfoRow label="Email">{contact.email}</InfoRow>
-                )}
-                {contact.phone && (
-                  <InfoRow label="Phone">{contact.phone}</InfoRow>
-                )}
-                {contact.address && (
-                  <InfoRow label="Address">{contact.address}</InfoRow>
-                )}
-              </dl>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FAQs({ resort }) {
-  const faqs = resort?.faqs || [];
-  if (!faqs.length) return null;
-  return (
-    <div className="card border-0 shadow-sm mb-4">
-      <div className="card-body">
-        <SectionHeader id="faq" title="FAQs" />
-        <div className="accordion" id="faqAcc">
-          {faqs.map((f, i) => {
-            const id = `faq-${i}`;
-            return (
-              <div className="accordion-item" key={id}>
-                <h2 className="accordion-header" id={`${id}-h`}>
-                  <button
-                    className={`accordion-button ${i ? "collapsed" : ""}`}
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target={`#${id}-c`}
-                    aria-expanded={i === 0 ? "true" : "false"}
-                    aria-controls={`${id}-c`}
-                  >
-                    {f.title}
-                  </button>
-                </h2>
-                <div
-                  id={`${id}-c`}
-                  className={`accordion-collapse collapse ${
-                    i === 0 ? "show" : ""
-                  }`}
-                  aria-labelledby={`${id}-h`}
-                  data-bs-parent="#faqAcc"
-                >
-                  <div className="accordion-body small">{f.content}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
+/* ---------------- page (server) ---------------- */
 export default function ResortDetailPage({ params }) {
   const resort = getResortBySlug(params.slug);
 
@@ -629,45 +369,14 @@ export default function ResortDetailPage({ params }) {
     );
   }
 
-  const toc = [
-    { id: "overview", label: "Overview" },
-    { id: "rooms", label: "Rooms" },
-    { id: "dining", label: "Dining" },
-    { id: "wellness", label: "Wellness" },
-    { id: "activities", label: "Activities" },
-    // { id: "transfers", label: "Transfers" },
-    // { id: "policies", label: "Policies & Fees" },
-    // { id: "faq", label: "FAQs" },
-    // { id: "more", label: "More" },
-  ];
-
-  // ---- Price Snapshot calcs
-  const DEFAULT_NIGHTS = 3;
-  const DEFAULT_GUESTS = 2;
-  const nights = DEFAULT_NIGHTS;
-  const guests = DEFAULT_GUESTS;
-  const baseRate = resort?.priceFrom ?? 0;
-
-  const greenTaxPer = (() => {
-    const m = resort?.fees?.mandatory?.find?.((x) =>
-      (x.label || "").toLowerCase().includes("green tax")
-    );
-    if (!m?.amount) return 0;
-    const match = String(m.amount).match(/(\d+(\.\d+)?)/);
-    return match ? Number(match[1]) : 0;
-  })();
-
-  const baseTotal = baseRate * nights * guests;
-  const greenTaxTotal = greenTaxPer * nights * guests;
-  const taxes10 = Math.round(baseTotal * 0.1);
-  const grandTotal = baseTotal + greenTaxTotal + taxes10;
-
-  const fmt = (n) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(n);
+  // Basic snapshot for “Starting From”
+  const baseRate =
+    num(resort?.price?.from) ||
+    num(resort?.priceFrom) ||
+    num(resort?.price?.base) ||
+    num(resort?.price?.amount) ||
+    num(resort?.pricePerNight) ||
+    num(resort?.rate?.nightly);
 
   return (
     <>
@@ -689,7 +398,12 @@ export default function ResortDetailPage({ params }) {
             >
               {resort.island}
             </p>
-            <h1 className="display-5 fw-bold">{resort.name}</h1>
+            <h1
+              className="display-5 fw-bold"
+              style={{ fontFamily: "playfair" }}
+            >
+              {resort.name}
+            </h1>
             <p className="lead mb-0">{resort.short}</p>
           </div>
         </section>
@@ -713,7 +427,13 @@ export default function ResortDetailPage({ params }) {
           <div className="card border-0 shadow-sm mb-4">
             <div className="card-body py-2">
               <div className="d-flex flex-wrap gap-2">
-                {toc.map((t) => (
+                {[
+                  { id: "overview", label: "Overview" },
+                  { id: "rooms", label: "Rooms" },
+                  { id: "dining", label: "Dining" },
+                  { id: "wellness", label: "Wellness" },
+                  { id: "activities", label: "Activities" },
+                ].map((t) => (
                   <a
                     key={t.id}
                     href={`#${t.id}`}
@@ -723,9 +443,13 @@ export default function ResortDetailPage({ params }) {
                   </a>
                 ))}
                 <div className="ms-auto d-none d-md-inline">
-                  <Link href="/booking" className="btn btn-success">
-                    Check Availability
-                  </Link>
+                  <button
+                    className={`${
+                      resort.available ? "bg-[#2ECC71]" : "bg-red-600"
+                    } text-white py-[8px] px-[34px] rounded`}
+                  >
+                    {resort.available ? "Available" : "Unavailable"}
+                  </button>
                 </div>
               </div>
             </div>
@@ -765,10 +489,6 @@ export default function ResortDetailPage({ params }) {
               <Dining resort={resort} />
               <Wellness resort={resort} />
               <Activities resort={resort} />
-              {/* <Transfers resort={resort} />
-              <PoliciesFees resort={resort} />
-              <FAQs resort={resort} />
-              <Extras resort={resort} /> */}
             </div>
 
             {/* Right sidebar */}
@@ -790,22 +510,29 @@ export default function ResortDetailPage({ params }) {
                         <span className="ms-1">{resort.rating}</span>
                       </InfoRow>
                       <InfoRow label="Starting From">
-                        ${resort.priceFrom} / night
+                        ${baseRate} / night
                       </InfoRow>
                       <InfoRow label="Tags">
                         <BadgeList items={resort.tags} />
                       </InfoRow>
                     </dl>
                   </div>
+
+                  {/* Client booking widget */}
+                  <div className="p-3 pt-0">
+                    <BookingWidget resort={resort} />
+                  </div>
                 </div>
 
-                {/* Price Snapshot */}
-                <div className="card border-0 shadow-sm mb-3">
-                  <PriceBook resort={resort} />
-                </div>
-
-                <Link href="/resorts" className="btn btn-outline-dark mt-3">
-                  ← Back to all resorts
+                {/* Back link */}
+                <Link
+                  href="/"
+                  className=" mt-[30px] text-blue-500 flex items-center gap-1 "
+                >
+                  <span>
+                    <PiCaretDoubleLeftBold />
+                  </span>
+                  Back to Home
                 </Link>
               </div>
             </div>
@@ -841,8 +568,6 @@ export default function ResortDetailPage({ params }) {
           }}
         />
       </div>
-
-      {/* Scoped style: force p and small to 16px on this page only */}
     </>
   );
 }

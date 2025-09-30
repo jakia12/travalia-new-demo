@@ -1,127 +1,218 @@
+// app/_components/PriceBook.jsx
 "use client";
 
-import { useState } from "react";
+import SummaryCard3 from "@/components/shared/Summurycard3";
+import { useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
-const PriceBook = ({ resort }) => {
-  const [loading, setLoading] = useState(false);
+/* ---------------- helpers ---------------- */
+function num(x) {
+  if (x == null) return 0;
+  if (typeof x === "number" && isFinite(x)) return x;
+  if (typeof x === "string") {
+    const n = Number(x.replace(/[^0-9.-]+/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
 
-  // ---- Price Snapshot calcs (display only)
-  const DEFAULT_NIGHTS = 3;
-  const DEFAULT_GUESTS = 2;
-  const nights = DEFAULT_NIGHTS;
-  const guests = DEFAULT_GUESTS;
-  const baseRate = resort?.priceFrom ?? 0;
+// ---- Valid package IDs your /api/checkout accepts
+const VALID_PACKAGE_IDS = new Set([
+  "honeymoon",
+  "family",
+  "inclusive",
+  "wellness",
+  "adventure",
+  "luxury",
+]);
 
-  const greenTaxPer = (() => {
+// ---- Map resort -> valid package id
+const PACKAGE_MAP = {
+  "lily-beach-resort-spa": "luxury",
+  "hideaway-beach-resort-spa": "honeymoon",
+  "signature-collection-by-hideaway": "luxury",
+  "kandima-maldives": "family",
+  "ritz-carlton-maldives-fari-islands": "luxury",
+  "adaaran-prestige-water-villas": "honeymoon",
+};
+const FALLBACK_PACKAGE_ID = "inclusive";
+
+function mapToValidPackageId(resort) {
+  const candidate =
+    PACKAGE_MAP[resort?.slug] || PACKAGE_MAP[resort?.id] || FALLBACK_PACKAGE_ID;
+  return VALID_PACKAGE_IDS.has(candidate) ? candidate : FALLBACK_PACKAGE_ID;
+}
+
+/**
+ * Resolve canonical pricing meta. This mirrors SidebarBookingCard’s resolve logic.
+ * - baseRate is a per-night rate (per person or per room)
+ * - per = "person" | "room"
+ * - includesTaxes toggles VAT addition
+ * - taxRate (default 10%)
+ * - extraPerGuestPerNight supports things like Green Tax
+ */
+function resolvePricing(resort) {
+  const price = resort?.price || {};
+  const currency = price.currency || "USD";
+  const per = (price.per || "room").toLowerCase();
+  const includesTaxes = !!price.includesTaxes;
+
+  const baseRate =
+    num(resort?.priceFrom) ||
+    num(resort?.base) ||
+    num(price.from) ||
+    num(price.base) ||
+    num(price.amount) ||
+    num(resort?.pricePerNight) ||
+    num(resort?.rate?.nightly);
+
+  // Optional: e.g., Green Tax per guest/night
+  const extraPerGuestPerNight = (() => {
     const m = resort?.fees?.mandatory?.find?.((x) =>
-      (x.label || "").toLowerCase().includes("green tax")
+      (x?.label || "").toLowerCase().includes("green tax")
     );
     if (!m?.amount) return 0;
     const match = String(m.amount).match(/(\d+(\.\d+)?)/);
     return match ? Number(match[1]) : 0;
   })();
 
-  const baseTotal = baseRate * nights * guests;
-  const greenTaxTotal = greenTaxPer * nights * guests;
-  const taxes10 = Math.round(baseTotal * 0.1);
-  const grandTotal = baseTotal + greenTaxTotal + taxes10;
+  return {
+    baseRate,
+    per, // "person" | "room"
+    currency,
+    includesTaxes,
+    taxRate: 0.1,
+    extraPerGuestPerNight,
+  };
+}
 
-  const fmt = (n) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(n);
+export default function PriceBook({ resort }) {
+  const [submitting, setSubmitting] = useState(false);
+  const modalRef = useRef(null);
 
-  // Use a packageId your /api/checkout recognizes
-  const VALID_PACKAGE_ID = "inclusive"; // ← e.g. one of: honeymoon/family/inclusive/wellness/adventure/luxury
+  // ---- Editable defaults used by the modal (LIVE state inside the modal will control these)
+  const [nights] = useState(
+    resort?.nights || Math.max((resort?.durationDays || 4) - 1, 1)
+  );
+  const [adults] = useState(2);
+  const [children] = useState(0);
 
-  // ---- Book Now: success toast first, then redirect ONLY to Stripe
-  async function handleBookNow() {
-    if (!resort || loading) return;
+  // ---- Canonical pricing (SINGLE source of truth shared with SummaryCard2)
+  const pricing = useMemo(() => resolvePricing(resort), [resort]);
 
-    toast.success(`Great news! Your booking is Ready`, { duration: 1500 });
+  // ---- Normalized pkg/meta (mirrors SidebarBookingCard expectations)
+  const checkoutPackageId = useMemo(
+    () => mapToValidPackageId(resort),
+    [resort]
+  );
 
-    setLoading(true);
-
-    // Minimal payload your route likely expects (same shape as your booking page)
-    const payload = {
-      packageId: VALID_PACKAGE_ID,
-      checkIn: null,
-      checkOut: null,
-      adults: guests,
-      children: 0,
+  const pkg = useMemo(
+    () => ({
+      id: checkoutPackageId,
+      title: resort?.name ?? "Selected Resort",
+      name: resort?.name,
+      category: "resort",
+      durationDays: nights + 1,
       nights,
-      addOns: [],
-      // keep it minimal; your API can compute amounts server-side if needed
+      cancellationPolicy: resort?.policies?.cancellation || "",
+      // (Optional) availability/inclusions if you have them on resort
+      availability: resort?.availability || [],
+      inclusions: resort?.inclusions || [],
+    }),
+    [checkoutPackageId, resort, nights]
+  );
+
+  // If you have preselected extras in resort, pass them through like Sidebar does
+  const extras = useMemo(() => resort?.selectedExtras || {}, [resort]);
+  const extrasTotal = useMemo(() => num(resort?.extrasTotal || 0), [resort]);
+
+  // ---- Reserve (identical validations & flow)
+  function validatePayload(vals) {
+    if (!vals.packageId) return "Missing package";
+    if (!VALID_PACKAGE_IDS.has(vals.packageId)) return "Invalid package";
+    if (!vals.checkIn) return "Please select a check-in date";
+    if (!vals.checkOut) return "Please select a check-out date";
+    const inDate = new Date(vals.checkIn);
+    const outDate = new Date(vals.checkOut);
+    if (Number.isNaN(inDate.getTime()) || Number.isNaN(outDate.getTime()))
+      return "Invalid date";
+    if (outDate <= inDate) return "Check-out must be after check-in";
+    if (!Number.isInteger(vals.adults) || vals.adults < 1)
+      return "At least 1 adult";
+    if (!Number.isInteger(vals.children) || vals.children < 0)
+      return "Children cannot be negative";
+    if (!Number.isInteger(vals.nights) || vals.nights < 1)
+      return "Nights must be at least 1";
+    return null;
+  }
+
+  async function handleReserve(overrides = {}) {
+    const body = {
+      packageId: checkoutPackageId,
+      checkIn: overrides.checkIn ?? null,
+      checkOut: overrides.checkOut ?? null,
+      adults: overrides.adults ?? undefined, // SummaryCard2 will send the current values
+      children: overrides.children ?? undefined,
+      nights: overrides.nights ?? undefined,
+      addOns: overrides.addOns ?? [], // SummaryCard2 will send selected add-ons ids
     };
 
+    const err = validatePayload({
+      ...body,
+      // during validate we need actual numbers; SummaryCard2 always sends them
+      adults: Number(overrides.adults ?? 0),
+      children: Number(overrides.children ?? 0),
+      nights: Number(overrides.nights ?? 0),
+    });
+
+    const loadingId = toast.loading("Creating secure checkout…");
+    setSubmitting(true);
     try {
+      if (err) throw new Error(err);
+
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
       });
-
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.url) {
-        throw new Error(data?.error || "No checkout URL returned");
+        throw new Error(
+          data?.error ||
+            `Failed to start checkout (packageId="${body.packageId}").`
+        );
       }
-
-      // brief delay so the toast is visible, then go straight to Stripe
-      setTimeout(() => {
-        window.location.assign(data.url);
-      }, 700);
-    } catch (err) {
-      toast.error(
-        err?.message || "Couldn't open secure checkout. Please try again."
-      );
-      setLoading(false);
+      toast.dismiss(loadingId);
+      toast.success("Redirecting to Stripe…");
+      window.location.href = data.url;
+      return { url: data.url };
+    } catch (e) {
+      toast.dismiss(loadingId);
+      toast.error(e?.message || "Network error. Please try again.");
+      throw e;
+    } finally {
+      setSubmitting(false);
     }
   }
 
   return (
-    <div className="card-body">
-      <h5 className="fw-semibold mb-2" style={{ fontFamily: "playfair" }}>
-        Price Snapshot
-      </h5>
-      <div className="small text-muted mb-2">
-        {nights} night{nights > 1 ? "s" : ""} · {guests} guest
-        {guests > 1 ? "s" : ""} · from {fmt(baseRate)}/night
-      </div>
-
-      <div className="d-flex justify-content-between mb-1">
-        <span className="text-muted">Base</span>
-        <strong>{fmt(baseTotal)}</strong>
-      </div>
-      <div className="d-flex justify-content-between mb-1">
-        <span className="text-muted">Green Tax</span>
-        <strong>{fmt(greenTaxTotal)}</strong>
-      </div>
-      <div className="d-flex justify-content-between mb-2">
-        <span className="text-muted">Taxes & fees (10%)</span>
-        <strong>{fmt(taxes10)}</strong>
-      </div>
-
-      <div className="d-flex justify-content-between align-items-center mt-2">
-        <span className="h6 mb-0">Total</span>
-        <span className="h4 mb-0">{fmt(grandTotal)}</span>
-      </div>
-
-      <div className="d-grid mt-3">
-        <button
-          type="button"
-          onClick={handleBookNow}
-          className="btn btn-success btn-lg"
-          disabled={loading}
-          aria-busy={loading ? "true" : "false"}
-        >
-          {loading ? "Redirecting…" : `Book Now · ${fmt(grandTotal)}`}
-        </button>
-      </div>
+    <div>
+      <SummaryCard3
+        ref={modalRef}
+        // live starting values (modal fully controls updates)
+        initialAdults={adults}
+        initialChildren={children}
+        initialNights={nights}
+        // single source-of-truth for all math
+        pricing={pricing}
+        // normalized pkg/meta
+        pkg={pkg}
+        // optional: pass-through extras to match Sidebar behavior
+        extras={extras}
+        extrasTotal={extrasTotal}
+        submitting={submitting}
+        onReserve={handleReserve}
+      />
     </div>
   );
-};
-
-export default PriceBook;
+}

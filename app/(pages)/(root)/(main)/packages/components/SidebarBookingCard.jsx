@@ -1,9 +1,20 @@
+// app/_components/SidebarBookingCard.jsx
 "use client";
 
-import { useMemo, useState } from "react";
+import SummaryCard2 from "@/components/shared/Summurycard2";
+import { useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
-// helpers
+/* ---------- helpers ---------- */
+function num(x) {
+  if (x == null) return 0;
+  if (typeof x === "number" && isFinite(x)) return x;
+  if (typeof x === "string") {
+    const n = Number(x.replace(/[^0-9.-]+/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
 function money(n, currency = "USD") {
   try {
     return Number(n).toLocaleString("en-US", {
@@ -16,37 +27,65 @@ function money(n, currency = "USD") {
   }
 }
 
+/**
+ * Resolve the nightly/base rate and meta from whatever shape pkg has.
+ * Supports:
+ *  - pkg.base
+ *  - pkg.price.from
+ *  - pkg.price.base
+ *  - pkg.price.amount
+ *  - pkg.pricePerNight
+ *  - pkg.rate.nightly
+ */
+function resolvePriceMeta(pkg) {
+  const price = pkg?.price || {};
+  const currency = price.currency || "USD";
+  const per = (price.per || "person").toLowerCase(); // "person" | "room"
+  const includesTaxes = !!price.includesTaxes;
+
+  const baseRate =
+    num(pkg?.base) ||
+    num(price.base) ||
+    num(price.amount) ||
+    num(price.from) || // <-- your current data
+    num(pkg?.pricePerNight) ||
+    num(pkg?.rate?.nightly);
+
+  return { baseRate, per, currency, includesTaxes };
+}
+
 export default function SidebarBookingCard({ pkg }) {
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const priceMeta = pkg?.price || {};
-  const per = priceMeta.per || "person";
-  const currency = priceMeta.currency || "USD";
+  // --- Resolve pricing once, and ALSO build a normalized pkg the modal understands ---
+  const { baseRate, per, currency, includesTaxes } = useMemo(
+    () => resolvePriceMeta(pkg),
+    [pkg]
+  );
 
-  // sensible defaults for quick checkout (no date selection here)
+  // pax used both here and initial modal state
   const pax = useMemo(
     () => (per === "person" ? Math.max(pkg?.minGuests || 1, 1) : 1),
     [per, pkg?.minGuests]
   );
 
+  // use same math as modal for consistency
   const baseTotal = useMemo(() => {
-    const base = Number(priceMeta.from || 0);
-    return per === "person" ? base * pax : base;
-  }, [priceMeta.from, per, pax]);
+    return per === "person" ? baseRate * pax : baseRate;
+  }, [baseRate, per, pax]);
 
   const taxes = useMemo(
-    () => (priceMeta.includesTaxes ? 0 : Math.round(baseTotal * 0.1)),
-    [priceMeta.includesTaxes, baseTotal]
+    () => (includesTaxes ? 0 : Math.round(baseTotal * 0.1)),
+    [includesTaxes, baseTotal]
   );
 
   const total = baseTotal + taxes;
 
-  // ✅ Show success toast before redirecting to Stripe
+  // Quick-buy (optional)
   async function handleBookNow() {
     if (!pkg?.id) return alert("Missing package id.");
-
     const nights = pkg.nights || Math.max((pkg.durationDays || 1) - 1, 1);
-
     const payload = {
       packageId: String(pkg.id),
       title: String(pkg.title || pkg.name || "Selected Package"),
@@ -56,11 +95,6 @@ export default function SidebarBookingCard({ pkg }) {
       children: 0,
       nights,
       addOns: [],
-      // If your route expects amounts, uncomment:
-      // currency,
-      // baseTotal,
-      // taxes,
-      // grandTotal: total,
     };
 
     const loadingId = toast.loading("Creating secure checkout…");
@@ -71,24 +105,119 @@ export default function SidebarBookingCard({ pkg }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       const data = await res.json();
       toast.dismiss(loadingId);
-
-      if (!res.ok || !data?.url) {
+      if (!res.ok || !data?.url)
         throw new Error(data?.error || "Failed to start checkout");
-      }
-
-      // 🎉 Success message, then redirect
-      toast.success(`Great news! Your  booking is ready `);
-
+      toast.success("Great news! Your booking is ready");
       setTimeout(() => {
-        window.location.href = data.url; // Stripe Checkout
+        window.location.href = data.url;
       }, 900);
     } catch (e) {
       toast.dismiss(loadingId);
       toast.error(e.message || "Something went wrong. Please try again.");
       setLoading(false);
+    }
+  }
+
+  // Modal wiring
+  const modalRef = useRef(null);
+  const nights = useMemo(
+    () => pkg.nights || Math.max((pkg.durationDays || 1) - 1, 1),
+    [pkg.nights, pkg.durationDays]
+  );
+  const travelers = pax;
+
+  const extras = useMemo(
+    () => pkg?.selectedExtras || {},
+    [pkg?.selectedExtras]
+  );
+  const extrasTotal = useMemo(
+    () => num(pkg?.extrasTotal || 0),
+    [pkg?.extrasTotal]
+  );
+
+  const grandTotal = useMemo(() => total + extrasTotal, [total, extrasTotal]);
+
+  // Build a normalized pkg so SummaryCard2 can always read base & meta
+  const normalizedPkg = useMemo(() => {
+    return {
+      ...pkg,
+      base: baseRate, // <-- give modal a direct base
+      price: {
+        ...(pkg?.price || {}),
+        base: baseRate, // <-- fallback the modal expects
+        amount: baseRate, // <-- another fallback
+        from: baseRate, // keep for your sidebar display if needed
+        per, // "person" | "room"
+        currency,
+        includesTaxes,
+      },
+    };
+  }, [pkg, baseRate, per, currency, includesTaxes]);
+
+  // Reserve from modal
+  function validatePayload(vals) {
+    if (!vals.packageId) return "Missing package";
+    if (!vals.checkIn) return "Please select a check-in date";
+    if (!vals.checkOut) return "Please select a check-out date";
+    const inDate = new Date(vals.checkIn);
+    const outDate = new Date(vals.checkOut);
+    if (Number.isNaN(inDate.getTime()) || Number.isNaN(outDate.getTime()))
+      return "Invalid date";
+    if (outDate <= inDate) return "Check-out must be after check-in";
+    if (!Number.isInteger(vals.adults) || vals.adults < 1)
+      return "At least 1 adult";
+    if (!Number.isInteger(vals.children) || vals.children < 0)
+      return "Children cannot be negative";
+    return null;
+  }
+
+  async function handleReserve(overrides = {}) {
+    const addOns =
+      overrides.addOns ??
+      Object.entries(extras)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
+
+    const body = {
+      packageId: overrides.packageId ?? String(pkg?.id || ""),
+      checkIn: overrides.checkIn ?? null,
+      checkOut: overrides.checkOut ?? null,
+      adults: overrides.adults ?? travelers,
+      children: overrides.children ?? 0,
+      nights: overrides.nights ?? nights,
+      addOns,
+    };
+
+    const err = validatePayload(body);
+    const loadingId = toast.loading("Creating secure checkout…");
+    setSubmitting(true);
+
+    try {
+      if (err) throw new Error(err);
+
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.url) {
+        throw new Error(data?.error || "Failed to start checkout.");
+      }
+
+      toast.dismiss(loadingId);
+      toast.success("Redirecting to Stripe…");
+      window.location.href = data.url;
+      return { url: data.url };
+    } catch (e) {
+      toast.dismiss(loadingId);
+      toast.error(e?.message || "Network error. Please try again.");
+      throw e;
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -109,30 +238,31 @@ export default function SidebarBookingCard({ pkg }) {
     <>
       <div className="card border-0 shadow-sm">
         <div className="card-body" style={{ fontSize: "17px" }}>
-          {/* Price */}
-          <div className="d-flex align-items-end justify-content-between mb-2">
+          <div className="d-flex align-items-start justify-content-between mb-2">
             <div>
               <div className="fw-bold fs-4">
-                {money(priceMeta.from || 0, currency)}{" "}
+                {money(baseRate || 0, currency)}{" "}
                 <span className="text-muted fs-6">/ {per}</span>
               </div>
               <div className="small text-muted">
-                {priceMeta.includesTaxes
+                {includesTaxes
                   ? "Taxes included"
                   : "Taxes estimated at checkout"}
               </div>
             </div>
-            <span className="badge text-bg-success">
-              {pkg.category?.toUpperCase() || "PACKAGE"}
-            </span>
+
+            <div className="text-end">
+              <span className="badge text-bg-success mb-2 d-inline-block">
+                {pkg.category?.toUpperCase() || "PACKAGE"}
+              </span>
+            </div>
           </div>
 
-          {/* Availability snapshot */}
           {avail ? (
             <div className="small mb-3 " style={{ fontSize: "16px" }}>
               <span
-                className="badge text-bg-light border me-1 font-bold "
-                style={{ fontSize: "16px" }}
+                className="badge text-bg-light border me-1 "
+                style={{ fontSize: "14px" }}
               >
                 Availability
               </span>
@@ -145,7 +275,6 @@ export default function SidebarBookingCard({ pkg }) {
             </div>
           ) : null}
 
-          {/* Quick facts */}
           <dl className="row small mb-3 ">
             {quickFacts.map((f) => (
               <div className="col-12 d-flex " key={f.k}>
@@ -155,7 +284,6 @@ export default function SidebarBookingCard({ pkg }) {
             ))}
           </dl>
 
-          {/* Tiny inclusions preview */}
           {pkg.inclusions?.length ? (
             <>
               <div className="small fw-semibold mb-1">Included</div>
@@ -168,12 +296,11 @@ export default function SidebarBookingCard({ pkg }) {
             </>
           ) : null}
 
-          {/* Policy snippet */}
           {pkg.cancellationPolicy ? (
             <div className="small text-muted mb-3" style={{ fontSize: "16px" }}>
               <span
                 className="badge text-bg-light border me-1"
-                style={{ fontSize: "16px" }}
+                style={{ fontSize: "14px" }}
               >
                 Cancellation
               </span>
@@ -182,41 +309,21 @@ export default function SidebarBookingCard({ pkg }) {
                 : pkg.cancellationPolicy}
             </div>
           ) : null}
-        </div>
-      </div>
 
-      <div className="card border-0 shadow-sm mt-5 p-4">
-        <div className="row g-1 small mb-3  mt-4 pb-3">
-          <h5 className="fw-semibold mb-2" style={{ fontFamily: "playfair" }}>
-            Price Snapshot
-          </h5>
-          <div className="col-12 d-flex justify-content-between">
-            <span>Base ({per === "person" ? `${pax} pax` : "package"})</span>
-            <strong>{money(baseTotal, currency)}</strong>
-          </div>
-          <div className="col-12 d-flex justify-content-between">
-            <span>Taxes</span>
-            <strong>{money(taxes, currency)}</strong>
-          </div>
-          <div className="col-12 d-flex justify-content-between border-top pt-1">
-            <span>Total due now</span>
-            <strong>{money(total, currency)}</strong>
-          </div>
-        </div>
-
-        {/* Book now (Stripe) */}
-        <div className="d-grid">
-          <button
-            type="button"
-            onClick={handleBookNow}
-            className="btn btn-dark btn-lg rounded-pill"
-            style={{ background: "#2ecc71", border: "none" }}
-            disabled={loading}
-            aria-disabled={loading ? "true" : "false"}
-            aria-busy={loading ? "true" : "false"}
-          >
-            {loading ? "Redirecting…" : "Book now"}
-          </button>
+          <SummaryCard2
+            ref={modalRef}
+            pkg={normalizedPkg}
+            nights={nights}
+            travelers={travelers}
+            extras={extras}
+            extrasTotal={extrasTotal}
+            baseTotal={baseTotal}
+            taxes={taxes}
+            grandTotal={grandTotal}
+            submitting={submitting}
+            onReserve={handleReserve}
+            // onBookmark={handleBookmark} // add back if you use bookmarks
+          />
         </div>
       </div>
     </>

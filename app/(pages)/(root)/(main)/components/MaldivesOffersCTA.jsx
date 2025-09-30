@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 
 export default function MaldivesOffersCTA({
@@ -14,7 +13,7 @@ export default function MaldivesOffersCTA({
     <section className="relative w-full pt-[80px] pb-[100px]">
       {/* Hero */}
       <div className="relative h-[340px] md:h-[420px] lg:h-[500px] overflow-hidden">
-        <Image src={imageSrc} alt="" fill priority className="object-cover" />
+        <img src={imageSrc} alt="" fill priority className="object-cover" />
 
         {/* Dark overlay */}
         <div className="absolute inset-0 bg-black/55" />

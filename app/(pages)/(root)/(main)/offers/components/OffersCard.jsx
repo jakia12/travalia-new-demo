@@ -1,47 +1,22 @@
 // app/_components/ResortShowcase.jsx
 "use client";
 
+import { offers } from "@/data/offers";
+import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // ✅ App Router import
+
+function discountLabel(discount) {
+  if (!discount) return null;
+  if (discount.type === "percentage") return `${discount.value}% off`;
+  if (discount.type === "up_to_percentage")
+    return `Up to ${discount.value}% off`;
+  return null;
+}
 
 export default function OfferCard() {
-  const items = [
-    {
-      title: "Waldorf Astoria Maldives Ithaafushi",
-      desc: "30% off select villas",
-      img: "/img/offers/1.webp",
-      href: "/allResorts",
-    },
-    {
-      title: "Hilton Maldives Amingiri Resort & Spa",
-      desc: "25% off select villas",
-      img: "/img/offers/2.webp",
-      href: "/allResorts",
-    },
-    {
-      title: "OBLU XPERIENCE Ailafushi",
-      desc: "20% off select villas",
-      img: "/img/offers/3.webp",
-      href: "/allResorts",
-    },
-    {
-      title: "Anantara Veli Maldives Resort",
-      desc: "15% off water villas",
-      img: "/img/offers/4.webp",
-      href: "/allResorts",
-    },
-    {
-      title: "Hard Rock Hotel Maldives",
-      desc: "Free transfers + 10% off",
-      img: "/img/offers/5.webp",
-      href: "/allResorts",
-    },
-    {
-      title: "Soneva Jani",
-      desc: "Up to 20% off suites",
-      img: "/img/offers/6.webp",
-      href: "/allResorts",
-    },
-  ];
+  const router = useRouter();
+  const list = offers.slice(0, 6);
 
   return (
     <section className="container my-4 my-lg-5 py-[80px]">
@@ -65,36 +40,93 @@ export default function OfferCard() {
       <div className="cs_height_55 cs_height_lg_40" />
 
       <div className="row g-4">
-        {items.map((it, i) => (
-          <div className="col-12 col-lg-4" key={i}>
-            <article className="resort-tile position-relative rounded-4 overflow-hidden">
-              <img
-                src={it.img}
-                alt={it.title}
-                fill
-                className="tile-img"
-                priority={i === 0}
-              />
-              <div className="tile-overlay" />
-              <div className="tile-content text-white">
-                <h3 className="h5 mb-2">{it.title}</h3>
-                <p className="mb-3 small opacity-90">{it.desc}</p>
-                <Link href={it.href} className="book-link flex items-center">
-                  View Deal
-                  <svg
-                    className="ml-2 h-5 w-5 transition group-hover:translate-x-0.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
+        {list.map((it, i) => {
+          const badge = discountLabel(it.discount);
+          return (
+            <div className="col-12 col-lg-4" key={it.id}>
+              <Link
+                href={`/offers/${it.slug || it.id}`}
+                className="text-reset text-decoration-none d-block"
+                aria-label={`View offer: ${it.title}`}
+              >
+                <article className="resort-tile position-relative rounded-4 overflow-hidden">
+                  {/* Image */}
+                  <div
+                    className="position-relative"
+                    style={{ aspectRatio: "4 / 3" }}
                   >
-                    <path d="M5 12h14M13 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </div>
-            </article>
-          </div>
-        ))}
+                    <Image
+                      src={it.img}
+                      alt={`${it.resort} — ${it.title}`}
+                      fill
+                      sizes="(min-width: 992px) 33vw, 100vw"
+                      className="object-fit-cover tile-img"
+                      priority={i === 0}
+                    />
+                  </div>
+
+                  {/* overlay */}
+                  <div className="tile-overlay" />
+
+                  {/* discount badge */}
+                  {badge && (
+                    <span
+                      className="badge bg-success position-absolute"
+                      style={{ top: 12, left: 12, background: "#2ecc71" }} // ✅ fixed color
+                    >
+                      {badge}
+                    </span>
+                  )}
+
+                  {/* content */}
+                  <div className="tile-content text-white">
+                    <h3 className="h5 mb-1">{it.resort}</h3>
+                    <p className="mb-3 small opacity-90">
+                      {it.teaser || it.title}
+                    </p>
+
+                    {/* CTA "View All" inside card (no <button> inside <a>) */}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="book-link flex items-center text-[#2ecc71] text-decoration-none"
+                      aria-label={`Quick view: ${it.title}`}
+                      style={{
+                        background: "transparent",
+                        border: 0,
+                        padding: 0,
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        router.push(`/offers?highlight=${it.slug || it.id}`);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          router.push(`/offers?highlight=${it.slug || it.id}`);
+                        }
+                      }}
+                    >
+                      View All
+                      <svg
+                        className="ml-2 h-5 w-5 transition"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M5 12h14M13 5l7 7-7 7" />
+                      </svg>
+                    </span>
+                  </div>
+                </article>
+              </Link>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

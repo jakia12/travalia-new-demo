@@ -12,7 +12,10 @@ export default function OfferBanner() {
     >
       <div className="container mx-auto px-4">
         <div className="cs_page_header_text text-center">
-          <h1 className="cs_page_title cs_fs_70 cs_white_color cs_bold">
+          <h1
+            className="cs_page_title cs_fs_70 cs_white_color cs_bold"
+            style={{ fontFamily: "playfair" }}
+          >
             Maldives Resort Offers
           </h1>
           <p className="cs_page_subtitle cs_fs_24 mb-0">

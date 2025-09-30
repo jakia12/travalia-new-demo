@@ -16,7 +16,7 @@ const PACKAGES = [
     id: "honeymoon",
     title: "Honeymoon Escape",
     img: "/img/gl4.webp",
-    base: 250,
+    base: 500,
   },
   {
     id: "family",
@@ -277,7 +277,11 @@ export default function BookingPage() {
             <div className="col-xl-8">
               <p
                 className="text-uppercase mb-2"
-                style={{ letterSpacing: ".12em", color: "#2ecc71" }}
+                style={{
+                  letterSpacing: ".12em",
+                  color: "#2ecc71",
+                  fontFamily: "playfair",
+                }}
               >
                 Book Your Stay
               </p>

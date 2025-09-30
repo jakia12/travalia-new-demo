@@ -1,7 +1,34 @@
 // data/packages.js
+
+// --- helpers ---
+const toYMD = (d) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    .toISOString()
+    .slice(0, 10);
+
+const todayYMD = toYMD(new Date());
+
+const normalizeAvailability = (pkg) => {
+  // 1) If not available, no windows
+  if (pkg.available === false) return { ...pkg, availability: [] };
+
+  // 2) If available, keep current/future windows and trim "from" to today if already started
+  const normalized = (pkg.availability || [])
+    .map((win) => {
+      if (win.to < todayYMD) return null; // fully past
+      const from = win.from < todayYMD ? todayYMD : win.from; // trim
+      return { ...win, from };
+    })
+    .filter(Boolean);
+
+  return { ...pkg, availability: normalized };
+};
+
+// --- data ---
 export const packages = [
   {
     id: "honeymoon",
+    available: true, // ✅ available? yes
     sku: "PK-HNY-001",
     slug: "honeymoon-escape",
     title: "Honeymoon Escape — Private Beach Dinner & Sunset Cruise",
@@ -131,6 +158,7 @@ travel insurance strongly advised. The resort can accommodate vegetarian, vegan,
 
   {
     id: "family",
+    available: true, // ✅
     sku: "PK-FAM-002",
     slug: "family-fun-getaway",
     title: "Family Fun Getaway — Kids Club + Water Sports",
@@ -240,6 +268,7 @@ with prior notice.`,
 
   {
     id: "inclusive",
+    available: true, // ✅
     sku: "PK-AIR-003",
     slug: "all-inclusive-retreat",
     title: "All-Inclusive Retreat — Meals, Drinks & Transfers Included",
@@ -355,6 +384,7 @@ with seasonal exceptions.`,
 
   {
     id: "wellness",
+    available: true, // ✅
     sku: "PK-WELL-004",
     slug: "wellness-and-spa",
     title: "Wellness & Spa Reset — Detox, Yoga & Massage",
@@ -445,6 +475,7 @@ are available on request.`,
 
   {
     id: "adventure",
+    available: true, // ✅
     sku: "PK-AEG-005",
     slug: "aegean-adventure",
     title: "Aegean Adventure — Island Hopping & Cliff Walks",
@@ -548,6 +579,7 @@ Optional extras like intro scuba can be arranged on free days.`,
 
   {
     id: "luxury",
+    available: true, // ✅
     sku: "PK-LUX-006",
     slug: "luxury-overwater",
     title: "Luxury Overwater Villa — Butler, Private Pool & Glass Floor",
@@ -655,4 +687,8 @@ quiet-seekers; families are welcome but there are limited child-focused faciliti
   },
 ];
 
-export const getPackageBySlug = (slug) => packages.find((p) => p.slug === slug);
+// --- public getters that apply normalization at read time ---
+export const getPackages = () => packages.map(normalizeAvailability);
+
+export const getPackageBySlug = (slug) =>
+  normalizeAvailability(packages.find((p) => p.slug === slug));

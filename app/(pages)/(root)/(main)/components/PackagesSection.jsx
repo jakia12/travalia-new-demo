@@ -1,7 +1,6 @@
 "use client";
 
 import { packages } from "@/data/packages";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -63,10 +62,9 @@ export default function PackagesSection() {
                 <article className="package-card position-relative overflow-hidden">
                   {/* Image section */}
                   <div className="card-img-wrap">
-                    <Image
+                    <img
                       src={p.img}
                       alt={p.title}
-                      fill
                       className="object-cover"
                       priority={i < 3}
                     />

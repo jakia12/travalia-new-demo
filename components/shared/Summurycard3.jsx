@@ -3,11 +3,47 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import "react-datepicker/dist/react-datepicker.css";
+import toast from "react-hot-toast";
 import { z } from "zod";
-// allowed add-on keys (kept in sync with your UI)
+
+/* ---------------------------- helpers ---------------------------- */
 const ADDON_KEYS = ["sunsetCruise", "spaCredit", "waterSports"];
 
-// Zod schema (JS, not TS)
+// number coercion (handles "$1,200", "1200", 1200, null, undefined)
+function num(x) {
+  if (x == null) return 0;
+  if (typeof x === "number" && isFinite(x)) return x;
+  if (typeof x === "string") {
+    const n = Number(x.replace(/[^0-9.-]+/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+function money(n, currency = "USD") {
+  try {
+    return Number(n || 0).toLocaleString("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    });
+  } catch {
+    return `$${n ?? 0}`;
+  }
+}
+
+// parse "YYYY-MM-DD" in local time
+const fromYMD = (s) => {
+  if (!s) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+const toYMD = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+
+/* ---------------------------- schema ----------------------------- */
 const BookingSchema = z
   .object({
     packageId: z.string().min(1, "Missing package"),
@@ -20,7 +56,6 @@ const BookingSchema = z
       .default([]),
   })
   .superRefine((val, ctx) => {
-    // date sanity
     const inDate = new Date(val.checkIn);
     const outDate = new Date(val.checkOut);
     const inOk = !Number.isNaN(inDate.getTime());
@@ -49,68 +84,89 @@ const BookingSchema = z
     }
   });
 
-// parse "YYYY-MM-DD" safely in local time (no timezone jump)
-const fromYMD = (s) => {
-  if (!s) return null;
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d);
-};
-const toYMD = (d) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
-
-export default function SummaryCard({
+/* ---------------------------- component -------------------------- */
+export default function SummaryCard2({
   pkg,
   nights = 1,
-  travelers = 1,
+  travelers = 2,
   extras = {},
-  extrasTotal = 0,
-  baseTotal = 0,
-  taxes = 0,
-  grandTotal = 0,
-  onReserve, // parent handler(payload)
-  submitting = false, // disable buttons while redirecting
+  extrasTotal = 0, // not used in modal (modal recomputes)
+  baseTotal = 0, // not used in modal (modal recomputes)
+  taxes = 0, // not used in modal (modal recomputes)
+  grandTotal = 0, // not used in modal (modal recomputes)
+  onReserve,
+  submitting = false,
 }) {
   if (!pkg) return null;
 
-  // ---------------- Modal State ----------------
+  /* ---------- price meta & base-rate resolution (FIX) ----------- */
+  // Support multiple shapes from your data:
+  // - pkg.base
+  // - pkg.price.base
+  // - pkg.price.amount
+  // - pkg.pricePerNight
+  // - pkg.rate?.nightly
+  const priceMeta = pkg?.price || {};
+  const per = (priceMeta.per || "person").toLowerCase(); // "person" | "room"
+  const baseRate =
+    num(pkg?.base) ||
+    num(priceMeta.base) ||
+    num(priceMeta.amount) ||
+    num(pkg?.pricePerNight) ||
+    num(pkg?.rate?.nightly);
+
+  /* --------------------------- modal state ----------------------- */
   const [open, setOpen] = useState(false);
   const [anim, setAnim] = useState(false);
   const dialogRef = useRef(null);
+  const [sending, setSending] = useState(false);
 
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [adults, setAdults] = useState(Math.max(1, travelers || 1));
+  const [children, setChildren] = useState(0);
+  const [mExtras, setMExtras] = useState({
+    sunsetCruise: !!extras.sunsetCruise,
+    spaCredit: !!extras.spaCredit,
+    waterSports: !!extras.waterSports,
+  });
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  function openModal() {
+    setFieldErrors({});
+    setOpen(true);
+    requestAnimationFrame(() => setAnim(true));
+  }
+  function closeModal() {
+    setAnim(false);
+    setTimeout(() => setOpen(false), 150);
+  }
+  function handleOverlayMouseDown(e) {
+    if (e.target === e.currentTarget) closeModal();
+  }
+
+  // focus trap + body scroll lock
   useEffect(() => {
     if (!open) return;
-
-    // --- lock scroll + avoid layout shift when scrollbar disappears
     const body = document.body;
     const prevOverflow = body.style.overflow;
     const prevPaddingRight = body.style.paddingRight;
-
     const scrollbarComp =
       window.innerWidth - document.documentElement.clientWidth;
     body.style.overflow = "hidden";
-    if (scrollbarComp > 0) {
-      body.style.paddingRight = `${scrollbarComp}px`;
-    }
+    if (scrollbarComp > 0) body.style.paddingRight = `${scrollbarComp}px`;
 
-    // --- focus trap + Esc
     const dialog = dialogRef.current;
-
-    const getFocusables = () => {
-      if (!dialog) return [];
-      return Array.from(
-        dialog.querySelectorAll(
+    const getFocusables = () =>
+      Array.from(
+        dialog?.querySelectorAll(
           'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'
-        )
+        ) || []
       ).filter((el) => !el.hasAttribute("disabled"));
-    };
 
     let focusables = getFocusables();
     let first = focusables[0];
     let last = focusables[focusables.length - 1];
-
-    // focus dialog or first control
     (first || dialog)?.focus?.();
 
     const onKeyDown = (e) => {
@@ -121,66 +177,31 @@ export default function SummaryCard({
         return;
       }
       if (e.key === "Tab") {
-        // Recompute in case DOM changed
         focusables = getFocusables();
         if (focusables.length === 0) return;
         first = focusables[0];
         last = focusables[focusables.length - 1];
-
         if (e.shiftKey) {
           if (document.activeElement === first) {
             e.preventDefault();
             last.focus();
           }
-        } else {
-          if (document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-          }
+        } else if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
         }
       }
     };
 
-    // Use capture so we beat other listeners
     document.addEventListener("keydown", onKeyDown, true);
-
     return () => {
       document.removeEventListener("keydown", onKeyDown, true);
       body.style.overflow = prevOverflow;
       body.style.paddingRight = prevPaddingRight;
     };
-  }, [open]); // no need to depend on closeModal unless it’s recreated
+  }, [open]);
 
-  // Prefill from props when opening (adults from travelers best-effort)
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
-  const [adults, setAdults] = useState(Math.max(1, travelers || 1));
-  const [children, setChildren] = useState(0);
-  const [mExtras, setMExtras] = useState({
-    sunsetCruise: !!extras.sunsetCruise,
-    spaCredit: !!extras.spaCredit,
-    waterSports: !!extras.waterSports,
-  });
-
-  const [fieldErrors, setFieldErrors] = useState({}); // { field: message }
-
-  function openModal() {
-    // (Optional) reset or prefill here if needed
-    setFieldErrors({});
-    setOpen(true);
-    requestAnimationFrame(() => setAnim(true)); // start transition
-  }
-  function closeModal() {
-    setAnim(false);
-    setTimeout(() => setOpen(false), 150);
-  }
-
-  // ⬇️ NEW: close when clicking outside the dialog
-  function handleOverlayMouseDown(e) {
-    if (e.target === e.currentTarget) closeModal();
-  }
-
-  // ---------------- Calculations (live) ----------------
+  /* --------------------- live modal calculations ----------------- */
   const modalNights = useMemo(() => {
     if (!checkIn || !checkOut) return 1;
     const inDate = new Date(checkIn);
@@ -191,6 +212,7 @@ export default function SummaryCard({
   }, [checkIn, checkOut]);
 
   const modalTravelers = Math.max(1, (adults || 0) + (children || 0));
+  const guestMultiplier = per === "person" ? modalTravelers : 1;
 
   const modalExtrasTotal = useMemo(() => {
     let sum = 0;
@@ -200,15 +222,16 @@ export default function SummaryCard({
     return sum;
   }, [mExtras]);
 
+  // *** FIXED: use resolved baseRate + per logic
   const modalBaseTotal = useMemo(
-    () => (pkg?.base || 0) * modalNights * modalTravelers,
-    [pkg?.base, modalNights, modalTravelers]
+    () => baseRate * modalNights * guestMultiplier,
+    [baseRate, modalNights, guestMultiplier]
   );
 
   const modalTaxes = Math.round((modalBaseTotal + modalExtrasTotal) * 0.1);
   const modalGrandTotal = modalBaseTotal + modalExtrasTotal + modalTaxes;
 
-  // ---------------- Zod Validation ----------------
+  /* ----------------------- validation + submit -------------------- */
   function toAddOnsArray(obj) {
     return Object.entries(obj)
       .filter(([k, v]) => v && ADDON_KEYS.includes(k))
@@ -224,32 +247,30 @@ export default function SummaryCard({
       children,
       addOns: toAddOnsArray(mExtras),
     };
-
     const res = BookingSchema.safeParse(payload);
-
     if (res.success) {
       setFieldErrors({});
       return { ok: true, data: { ...res.data, nights: modalNights } };
     }
-
-    // Map zod issues -> { field: firstMessage }
     const map = {};
     for (const issue of res.error.issues) {
       const key = issue.path?.[0];
       if (key && !map[key]) map[key] = issue.message;
     }
     setFieldErrors(map);
-    return { ok: false };
+    return { ok: false, errors: map };
   }
 
-  // ---------------- Confirm (call parent) ----------------
-  function handleConfirm() {
-    if (!onReserve) return;
+  async function handleConfirm() {
     const v = validateWithZod();
     if (!v.ok) return;
 
-    // pass validated values + computed nights to parent
-    onReserve({
+    if (typeof onReserve !== "function") {
+      toast.error("Checkout handler is missing. Please wire onReserve.");
+      return;
+    }
+
+    const payload = {
       packageId: v.data.packageId,
       checkIn: v.data.checkIn,
       checkOut: v.data.checkOut,
@@ -257,89 +278,35 @@ export default function SummaryCard({
       children: v.data.children,
       nights: v.data.nights,
       addOns: v.data.addOns,
-    });
+    };
+
+    setSending(true);
+    try {
+      await onReserve(payload);
+    } catch (e) {
+      toast.error(e?.message || "Something went wrong. Please try again.");
+    } finally {
+      setSending(false);
+    }
   }
 
+  /* ------------------------------- UI ---------------------------- */
   return (
     <>
       {/* ---- CARD ---- */}
-      <div className="card border-0 shadow-sm rounded-4 position-sticky top-0 mt-[41px]">
-        <div
-          className="ratio ratio-16x9 rounded-top-4"
-          style={{
-            backgroundImage: `url('${pkg.img}')`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
+      <div className="card border-0 rounded-4">
         <div className="card-body">
-          <div className="d-flex justify-content-between align-items-start mb-2">
-            <div>
-              <h3 className="h5 mb-1 text-xl" style={{ fontSize: "40px" }}>
-                {pkg.title}
-              </h3>
-              <small className="text-muted">
-                from ${pkg.base}/night • {nights} night(s)
-              </small>
-            </div>
-            {/* <span className="badge bg-[#2ecc71]">{travelers} guest(s)</span> */}
-          </div>
-
-          <hr />
-
-          {/* (Totals block intentionally commented out per your file)
-          <div className="d-flex justify-content-between mb-2">
-            <span>Base</span>
-            <strong>${baseTotal}</strong>
-          </div>
-          <div className="small text-muted mb-3">
-            (${pkg.base} × {nights} × {Math.max(1, travelers)} guest
-            {travelers > 1 ? "s" : ""})
-          </div>
-
-          <div className="mb-2">
-            <div className="d-flex justify-content-between">
-              <span>Add-ons</span>
-              <strong>${extrasTotal}</strong>
-            </div>
-            <ul className="small text-muted ps-3 mt-1 mb-0">
-              {extras.sunsetCruise && <li>Sunset Cruise ($60)</li>}
-              {extras.spaCredit && <li>Spa Credit ($80)</li>}
-              {extras.waterSports && <li>Water Sports ($50)</li>}
-              {!extras.sunsetCruise &&
-                !extras.spaCredit &&
-                !extras.waterSports && <li>None selected</li>}
-            </ul>
-          </div>
-
-          <div className="d-flex justify-content-between mb-2">
-            <span>Taxes & fees (10%)</span>
-            <strong>${taxes}</strong>
-          </div>
-
-          <hr />
-
-          <div className="d-flex justify-content-between align-items-center">
-            <span className="h6 mb-0">Total</span>
-            <span className="h4 mb-0">${grandTotal}</span>
-          </div>
-          */}
-
           <button
             type="button"
-            className="btn w-100 mt-3 py-2 book_btn"
+            className="btn w-100 mt-3 py-[9px] book_btn"
             onClick={openModal}
-            disabled={submitting}
-            aria-busy={submitting ? "true" : "false"}
+            disabled={submitting || sending}
+            aria-busy={submitting || sending ? "true" : "false"}
             aria-live="polite"
             style={{ background: "#2ecc71", color: "#fff", border: "none" }}
           >
-            {submitting ? "Redirecting…" : "Reserve Now"}
+            {submitting || sending ? "Redirecting…" : "Reserve Now"}
           </button>
-
-          <p className="small text-muted text-center mt-2 mb-0">
-            Free changes within 24 hours • Secure checkout
-          </p>
         </div>
       </div>
 
@@ -351,12 +318,12 @@ export default function SummaryCard({
           aria-modal="true"
           aria-labelledby="reserveModalTitle"
           onKeyDown={(e) => e.key === "Escape" && closeModal()}
-          onMouseDown={handleOverlayMouseDown} // close on outside mousedown
+          onMouseDown={handleOverlayMouseDown}
         >
-          {/* Backdrop (visual) */}
+          {/* Backdrop */}
           <div className="reserve-backdrop" />
 
-          {/* Dialog (stop propagation so inside clicks don’t close) */}
+          {/* Dialog */}
           <div
             className="reserve-dialog"
             ref={dialogRef}
@@ -370,6 +337,7 @@ export default function SummaryCard({
               aria-label="Close"
               onClick={closeModal}
             />
+
             {/* Header */}
             <div className="mb-3">
               <h4 id="reserveModalTitle" className="m-0 text-center">
@@ -377,7 +345,7 @@ export default function SummaryCard({
               </h4>
             </div>
 
-            {/* Form top */}
+            {/* Dates & Guests */}
             <div className="mb-4">
               <h5 className="mb-3">2) Dates & Guests</h5>
               <div className="row g-3">
@@ -458,7 +426,6 @@ export default function SummaryCard({
                     type="text"
                     className="form-control"
                     value={modalNights}
-                    readOnly
                   />
                 </div>
               </div>
@@ -544,26 +511,26 @@ export default function SummaryCard({
             <div className="border-top pt-3">
               <div className="d-flex justify-content-between mb-2">
                 <span className="text-muted">Base</span>
-                <strong>${modalBaseTotal}</strong>
+                <strong>{money(modalBaseTotal)}</strong>
               </div>
               <div className="small text-muted mb-3">
-                (${pkg.base} × {modalNights} × {modalTravelers} guest
-                {modalTravelers > 1 ? "s" : ""})
+                ({money(baseRate)} × {modalNights} × {guestMultiplier} guest
+                {guestMultiplier > 1 ? "s" : ""})
               </div>
 
               <div className="d-flex justify-content-between mb-2">
                 <span className="text-muted">Add-ons</span>
-                <strong>${modalExtrasTotal}</strong>
+                <strong>{money(modalExtrasTotal)}</strong>
               </div>
 
               <div className="d-flex justify-content-between mb-2">
                 <span className="text-muted">Taxes & fees (10%)</span>
-                <strong>${modalTaxes}</strong>
+                <strong>{money(modalTaxes)}</strong>
               </div>
 
               <div className="d-flex justify-content-between align-items-center mt-3">
                 <span className="h6 mb-0">Total</span>
-                <span className="h4 mb-0">${modalGrandTotal}</span>
+                <span className="h4 mb-0">{money(modalGrandTotal)}</span>
               </div>
             </div>
 
@@ -581,15 +548,21 @@ export default function SummaryCard({
                 className="btn w-50"
                 style={{ background: "#2ecc71", color: "#fff" }}
                 onClick={handleConfirm}
-                disabled={submitting}
-                aria-busy={submitting ? "true" : "false"}
+                disabled={submitting || sending}
+                aria-busy={submitting || sending ? "true" : "false"}
               >
-                {submitting ? "Processing…" : "Confirm & Pay"}
+                {submitting || sending ? "Processing…" : "Confirm & Pay"}
               </button>
             </div>
           </div>
 
-          {/* Styles */}
+          {/* Styles
+          .reserve-modal{position:fixed;inset:0;z-index:1050;display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .15s ease}
+          .reserve-modal.is-open{opacity:1;pointer-events:auto}
+          .reserve-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+          .reserve-dialog{position:relative;background:#fff;width:min(720px,92vw);border-radius:16px;padding:24px;max-height:88vh;overflow:auto;transform:translateY(8px);transition:transform .15s ease}
+          .reserve-modal.is-open .reserve-dialog{transform:translateY(0)}
+          */}
         </div>
       )}
     </>

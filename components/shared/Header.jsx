@@ -95,13 +95,14 @@ export default function Header() {
 
         {/* Right: Book Now + Hamburger */}
         <div className="flex items-center gap-3">
-          <a
+          <Link
+          
             href="/booking"
             style={{ textDecoration: "none" }}
             className="lg:block hidden group items-center rounded px-[35px] py-3 text-white backdrop-blur transition bg-[#2ecc71] hover:bg-[#102039] shadow-2xl"
           >
             Book Now
-          </a>
+          </Link>
 
           {/* Hamburger (right) */}
           <button

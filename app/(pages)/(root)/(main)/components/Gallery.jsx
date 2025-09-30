@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AiOutlineClose } from "react-icons/ai";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
 const IMAGES = [
@@ -208,7 +209,7 @@ const Gallery = () => {
               aria-label="Close"
               onClick={close}
             >
-              &times;
+              <AiOutlineClose size={24} />
             </button>
 
             <button

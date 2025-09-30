@@ -1,7 +1,36 @@
 // app/data/resorts.js
+
+// --- helpers ---
+const toYMD = (d) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    .toISOString()
+    .slice(0, 10);
+
+const todayYMD = toYMD(new Date());
+
+const normalizeAvailability = (resort) => {
+  if (resort.available === false) return { ...resort, availability: [] };
+
+  const normalized = (resort.availability || [])
+    .map((win) => {
+      if (win.to < todayYMD) return null; // fully past
+      const from = win.from < todayYMD ? todayYMD : win.from; // trim running window start
+      return { ...win, from };
+    })
+    .filter(Boolean);
+
+  return { ...resort, availability: normalized };
+};
+
+// --- data ---
 export const resorts = [
   {
     id: "lily-beach",
+    available: true,
+    availability: [
+      { from: "2025-11-01", to: "2026-04-30", roomsLeft: 15 },
+      { from: "2026-11-01", to: "2027-04-30", roomsLeft: 25 },
+    ],
     slug: "lily-beach-resort-spa",
     name: "Lily Beach Resort & Spa",
     img: "/img/gl1.webp",
@@ -20,7 +49,8 @@ export const resorts = [
       "Tennis & fitness",
       "Snorkel-friendly house reef",
     ],
-    description: `A long-running favorite for travellers who want a premium, hassle-free all-inclusive. Lily’s famed Platinum Plan folds in generous buffet & à la carte dining, premium beverages, and a handful of experiences so you’re not signing checks all day. The natural house reef is a highlight—easy off-beach access with frequent turtle and reef-fish sightings. Rooms span relaxed beach villas to large overwater pool pavilions, and families get smooth logistics via buggy routes and a supervised kids’ club. Seaplane hops run by day and are coordinated with international arrivals.`,
+    description:
+      "A long-running favorite for travellers who want a premium, hassle-free all-inclusive. Lily’s famed Platinum Plan folds in generous buffet & à la carte dining, premium beverages, and a handful of experiences so you’re not signing checks all day. The natural house reef is a highlight—easy off-beach access with frequent turtle and reef-fish sightings. Rooms span relaxed beach villas to large overwater pool pavilions, and families get smooth logistics via buggy routes and a supervised kids’ club. Seaplane hops run by day and are coordinated with international arrivals.",
     coordinates: { lat: null, lng: null },
     contact: {
       phone: null,
@@ -41,7 +71,7 @@ export const resorts = [
         {
           mode: "seaplane",
           durationMinutes: 25,
-          costUSD: null, // sometimes included in specific Platinum Plan promos; otherwise chargeable
+          costUSD: null,
           schedule: "Daylight hours only",
           note: "Operated by TMA; Lily Hotels lounge access at Noovilu Seaplane Terminal.",
         },
@@ -223,6 +253,8 @@ export const resorts = [
 
   {
     id: "hideaway",
+    available: true,
+    availability: [{ from: "2025-10-01", to: "2026-04-30", roomsLeft: 18 }],
     slug: "hideaway-beach-resort-spa",
     name: "Hideaway Beach Resort & Spa",
     img: "/img/gl2.webp",
@@ -240,7 +272,8 @@ export const resorts = [
       "Butler service",
       "Multiple restaurants",
     ],
-    description: `A big, leafy island with space to spread out—every category is a suite or villa, many with private pools. The layout naturally separates activity zones from quieter beaches, so couples and families both find their rhythm. Dining ranges from an over-water Asian venue to an ocean-view buffet and a lively grill/bar scene. Divers get channels and reefs with good visibility; on land there’s tennis, cycling and a decent gym. Transfers are either a scenic direct seaplane by day or a domestic flight to Hanimaadhoo plus a short speedboat—useful for late arrivals.`,
+    description:
+      "A big, leafy island with space to spread out—every category is a suite or villa, many with private pools. The layout naturally separates activity zones from quieter beaches, so couples and families both find their rhythm. Dining ranges from an over-water Asian venue to an ocean-view buffet and a lively grill/bar scene. Divers get channels and reefs with good visibility; on land there’s tennis, cycling and a decent gym. Transfers are either a scenic direct seaplane by day or a domestic flight to Hanimaadhoo plus a short speedboat—useful for late arrivals.",
     coordinates: { lat: null, lng: null },
     contact: {
       phone: null,
@@ -405,6 +438,8 @@ export const resorts = [
 
   {
     id: "signature-hideaway",
+    available: true,
+    availability: [],
     slug: "signature-collection-by-hideaway",
     name: "The Signature Collection by Hideaway",
     img: "/img/gl3.webp",
@@ -422,7 +457,8 @@ export const resorts = [
       "Curated excursions",
       "Access to Hideaway Spa",
     ],
-    description: `A discrete enclave of residential-style villas within Hideaway—aimed at groups, multi-gen families and guests who want hotel polish with full privacy. Expect expansive pools, indoor-outdoor living, optional private chef service and quiet beachfront or lagoon settings. Guests still tap the main island for spa, dive and dining, but day-to-day life happens in the residence with your butler orchestrating the details.`,
+    description:
+      "A discrete enclave of residential-style villas within Hideaway—aimed at groups, multi-gen families and guests who want hotel polish with full privacy. Expect expansive pools, indoor-outdoor living, optional private chef service and quiet beachfront or lagoon settings. Guests still tap the main island for spa, dive and dining, but day-to-day life happens in the residence with your butler orchestrating the details.",
     coordinates: { lat: null, lng: null },
     contact: { phone: null, email: null, website: null, address: null },
     highlights: {
@@ -532,6 +568,8 @@ export const resorts = [
 
   {
     id: "kandima",
+    available: true,
+    availability: [{ from: "2025-07-01", to: "2026-06-30", roomsLeft: 40 }],
     slug: "kandima-maldives",
     name: "Kandima Maldives",
     img: "/img/rs1.webp",
@@ -548,7 +586,8 @@ export const resorts = [
       "Kids & Teens programs",
       "Sports arena",
     ],
-    description: `A lifestyle resort built for choice and energy: long beaches, a proper sports arena, an art studio, DJ nights and multiple pools from relaxed to vibey. Accommodation runs from wallet-friendly studios to overwater villas, so you can dial budget and style without losing the upbeat mood. Foodies get variety with buffets, à la carte venues and beach clubs. Families benefit from kids & teens programming; active travellers hit the gym classes and water sports. Domestic flight + short speedboat makes arrivals predictable; seaplane is also offered.`,
+    description:
+      "A lifestyle resort built for choice and energy: long beaches, a proper sports arena, an art studio, DJ nights and multiple pools from relaxed to vibey. Accommodation runs from wallet-friendly studios to overwater villas, so you can dial budget and style without losing the upbeat mood. Foodies get variety with buffets, à la carte venues and beach clubs. Families benefit from kids & teens programming; active travellers hit the gym classes and water sports. Domestic flight + short speedboat makes arrivals predictable; seaplane is also offered.",
     coordinates: { lat: null, lng: null },
     contact: {
       phone: null,
@@ -569,13 +608,13 @@ export const resorts = [
         {
           mode: "domestic+speedboat",
           durationMinutes: 35 + 15,
-          costUSD: { adult: 414, child: 300, infant: 0 }, // Comfort Class (published)
+          costUSD: { adult: 414, child: 300, infant: 0 },
           schedule: "Scheduled daily",
           note: "Fly to Dhaalu (35m) + 15m speedboat. Premium Sapphire Class also offered.",
         },
         {
           mode: "seaplane",
-          durationMinutes: 45, // approx; varies with routing
+          durationMinutes: 45,
           costUSD: { adult: 675, child: 375, infant: 0 },
           schedule: "Daylight hours",
           note: "Rates include taxes; subject to third-party operator changes.",
@@ -699,6 +738,8 @@ export const resorts = [
 
   {
     id: "ritz-carlton-fari",
+    available: true,
+    availability: [{ from: "2025-05-01", to: "2026-04-30", roomsLeft: 10 }],
     slug: "ritz-carlton-maldives-fari-islands",
     name: "The Ritz-Carlton Maldives, Fari Islands",
     img: "/img/rs2.webp",
@@ -714,7 +755,8 @@ export const resorts = [
       "Ritz-Carlton Spa",
       "Curated dining",
     ],
-    description: `A striking ring-shaped, minimalist resort linked by boardwalks over a clear lagoon—close enough to reach by speedboat, far enough to feel away from it all. Each villa includes Aris Meeha butler service, terraces aimed at the water and generous pools. Guests can hop to Fari Marina Village for extra dining and shopping then retreat to quiet coves and a soothing spa program. It’s a sleek choice for design lovers, couples and anyone prioritising easy transfers without compromising luxury.`,
+    description:
+      "A striking ring-shaped, minimalist resort linked by boardwalks over a clear lagoon—close enough to reach by speedboat, far enough to feel away from it all. Each villa includes Aris Meeha butler service, terraces aimed at the water and generous pools. Guests can hop to Fari Marina Village for extra dining and shopping then retreat to quiet coves and a soothing spa program. It’s a sleek choice for design lovers, couples and anyone prioritising easy transfers without compromising luxury.",
     coordinates: { lat: null, lng: null },
     contact: {
       phone: null,
@@ -735,7 +777,7 @@ export const resorts = [
       details: [
         {
           mode: "speedboat",
-          durationMinutes: 45, // 40–50 depending on sea state
+          durationMinutes: 45,
           costUSD: { adult: 1027, child: 514, infant: 0 },
           schedule: "On-demand 24 hours",
           note: "Shared luxury speedboat; fees include service & government taxes.",
@@ -877,6 +919,8 @@ export const resorts = [
 
   {
     id: "adaaran-prestige-water-villas",
+    available: true,
+    availability: [{ from: "2025-08-01", to: "2026-03-31", roomsLeft: 8 }],
     slug: "adaaran-prestige-water-villas",
     name: "Adaaran Prestige Water Villas",
     img: "/img/rs3.webp",
@@ -892,7 +936,8 @@ export const resorts = [
       "Snorkelling",
       "Excursions",
     ],
-    description: `A cosy cluster of overwater villas attached to a larger island—ideal if you want an intimate “all-about-the-villa” feel with access to extra restaurants and facilities next door. Expect glass floor panels, steps into the lagoon and warm service. Seaplane transfers take ~45 minutes by day (with lounge hosting if you wait). If your flights fall outside seaplane hours, domestic + boat options can be arranged on certain routes.`,
+    description:
+      "A cosy cluster of overwater villas attached to a larger island—ideal if you want an intimate “all-about-the-villa” feel with access to extra restaurants and facilities next door. Expect glass floor panels, steps into the lagoon and warm service. Seaplane transfers take ~45 minutes by day (with lounge hosting if you wait). If your flights fall outside seaplane hours, domestic + boat options can be arranged on certain routes.",
     coordinates: { lat: null, lng: null },
     contact: {
       phone: null,
@@ -919,7 +964,7 @@ export const resorts = [
         },
         {
           mode: "domestic+speedboat",
-          durationMinutes: 20 + 45, // sample Dharavandhoo + boat used seasonally
+          durationMinutes: 20 + 45,
           costUSD: null,
           schedule:
             "When seaplane unavailable (seasonal/flight-time dependent)",
@@ -1031,4 +1076,7 @@ export const resorts = [
   },
 ];
 
-export const getResortBySlug = (slug) => resorts.find((r) => r.slug === slug);
+// --- public getters that apply normalization at read time ---
+export const getResorts = () => resorts.map(normalizeAvailability);
+export const getResortBySlug = (slug) =>
+  normalizeAvailability(resorts.find((r) => r.slug === slug));

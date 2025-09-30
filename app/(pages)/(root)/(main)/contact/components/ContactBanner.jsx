@@ -13,7 +13,10 @@ export default function ContactBanner() {
     >
       <div className="container">
         <div className="cs_page_header_text text-center">
-          <h1 className="cs_page_title cs_fs_70 cs_white_color cs_bold">
+          <h1
+            className="cs_page_title cs_fs_70 cs_white_color cs_bold"
+            style={{ fontFamily: "playfair" }}
+          >
             Contact Us
           </h1>
           <p className="cs_page_subtitle cs_fs_24 mb-0">Get In Touch With Us</p>

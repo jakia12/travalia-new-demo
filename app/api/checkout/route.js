@@ -6,20 +6,32 @@ import { ADDONS, FEES_RATE, PACKAGES } from "@/lib/pricing";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-// helpers
-const toNum = (v, d = 0) => {
+// ---- helpers -------------------------------------------------
+const num = (v, d = 0) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : d;
 };
-const toInt = (v, d = 0) => {
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : d;
-};
-const toCents = (usd) => Math.round(toNum(usd, 0) * 100);
 
+// If value looks like cents (>=1000 and divisible by 100), convert to USD.
+// Otherwise treat as USD already.
+const asUSD = (v) => {
+  const n = num(v, 0);
+  if (Number.isInteger(n) && n >= 1000 && n % 100 === 0) return n / 100;
+  return n;
+};
+
+// Convert USD to cents once for Stripe
+const toCents = (usd) => Math.round(num(usd, 0) * 100);
+
+// Normalize fee rate if given as 10 or 0.10
+const feeRate = (() => {
+  const r = num(FEES_RATE, 0);
+  return r > 1 ? r / 100 : r; // 10 -> 0.10
+})();
+
+// ---- route ---------------------------------------------------
 export async function POST(req) {
   try {
-    // Stripe key must exist at runtime (do NOT construct Stripe at module top-level)
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) {
       return NextResponse.json(
@@ -31,13 +43,14 @@ export async function POST(req) {
 
     const body = await req.json().catch(() => ({}));
     const {
-      packageId, // e.g. "honeymoon" | "family" | "inclusive" ...
-      checkIn = null, // "YYYY-MM-DD" or null
-      checkOut = null, // "YYYY-MM-DD" or null
+      packageId, // e.g. "honeymoon"
+      checkIn = null,
+      checkOut = null,
       adults = 1,
       children = 0,
-      nights, // client value; we'll validate/fallback
-      addOns = [], // ["sunsetCruise", ...]
+      nights,
+      addOns = [],
+      title, // optional, for product name
     } = body || {};
 
     const pkg = PACKAGES?.[packageId];
@@ -45,14 +58,13 @@ export async function POST(req) {
       return NextResponse.json({ error: "Invalid package" }, { status: 400 });
     }
 
-    // normalize guests
-    const A = Math.max(1, toInt(adults, 1));
-    const C = Math.max(0, toInt(children, 0));
+    const A = Math.max(1, parseInt(adults, 10) || 1);
+    const C = Math.max(0, parseInt(children, 10) || 0);
     const guests = A + C;
 
-    // recompute nights if not provided or invalid
-    let n = toInt(nights, 0);
-    if (!n) {
+    // recompute nights if not valid
+    let n = parseInt(nights, 10);
+    if (!Number.isFinite(n) || n < 1) {
       if (checkIn && checkOut) {
         const inD = new Date(checkIn);
         const outD = new Date(checkOut);
@@ -63,17 +75,16 @@ export async function POST(req) {
       }
     }
 
-    // USD amounts (not cents)
-    const nightlyUSD = toNum(pkg.nightly, 0);
+    // ---- amounts in USD (normalized) ----
+    const nightlyUSD = asUSD(pkg.nightly); // works whether cents or USD
     const baseUSD = nightlyUSD * n * guests;
 
-    // add-ons (USD)
     let addOnsUSD = 0;
     const addOnLineItems = [];
     for (const id of Array.isArray(addOns) ? addOns : []) {
       const a = ADDONS?.[id];
       if (!a) continue;
-      const priceUSD = toNum(a.price, 0);
+      const priceUSD = asUSD(a.price);
       addOnsUSD += priceUSD;
       addOnLineItems.push({
         price_data: {
@@ -85,16 +96,17 @@ export async function POST(req) {
       });
     }
 
-    const feeRate = toNum(FEES_RATE, 0); // e.g. 0.10
     const feesUSD = Math.round((baseUSD + addOnsUSD) * feeRate);
 
+    // ---- Stripe line items (in cents) ----
     const line_items = [
       {
         price_data: {
           currency: "usd",
           unit_amount: toCents(baseUSD),
           product_data: {
-            name: `${pkg.name} (${guests} guest${guests > 1 ? "s" : ""})`,
+            name:
+              title || `${pkg.name} (${guests} guest${guests > 1 ? "s" : ""})`,
             description: `${n} night(s) • ${checkIn || "TBD"} → ${
               checkOut || "TBD"
             }`,
@@ -118,7 +130,7 @@ export async function POST(req) {
       });
     }
 
-    // success/cancel URLs (env first, then request origin fallback)
+    // success/cancel URLs
     const origin =
       process.env.NEXT_PUBLIC_BASE_URL ||
       req.headers.get("origin") ||

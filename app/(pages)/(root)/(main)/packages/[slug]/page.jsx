@@ -2,6 +2,7 @@
 import { getPackageBySlug, packages } from "@/data/packages";
 import Image from "next/image";
 import Link from "next/link";
+import { PiCaretDoubleLeftBold } from "react-icons/pi";
 import SidebarBookingCard from "../components/SidebarBookingCard";
 
 export async function generateStaticParams() {
@@ -52,7 +53,10 @@ export default function PackageDetailPage({ params }) {
                 {/* <span className="badge bg-success mb-3">
                   {pkg.category?.toUpperCase() || "PACKAGE"}
                 </span> */}
-                <h1 className="display-5 fw-bold mb-2m text-center">
+                <h1
+                  className="display-5 fw-bold mb-2m text-center"
+                  style={{ fontFamily: "playfair" }}
+                >
                   {pkg.title}
                 </h1>
                 <p className="lead mb-3 text-center">{pkg.summary}</p>
@@ -245,12 +249,16 @@ export default function PackageDetailPage({ params }) {
           {/* RIGHT — Booking */}
           <div className="col-lg-4">
             <div className="position-sticky" style={{ top: "90px" }}>
-              <SidebarBookingCard pkg={pkg} /> {/* ← new useful sidebar */}
+              <SidebarBookingCard pkg={pkg} />
               <Link
-                href="/packages"
-                className="btn btn-outline-dark w-100 rounded-pill mt-3"
+                href="/"
+                className=" mt-[30px] text-blue-500 flex items-center gap-1 "
               >
-                ← Back to all packages
+                <span>
+                  {" "}
+                  <PiCaretDoubleLeftBold />
+                </span>
+                Back to Home
               </Link>
             </div>
           </div>
