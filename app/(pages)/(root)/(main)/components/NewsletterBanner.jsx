@@ -1,26 +1,42 @@
 // components/NewsletterBanner.jsx
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { z } from "zod";
+
+// Email schema
+const emailSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Please enter an email address")
+    .email("Enter a valid email address")
+    .max(254, "Email is too long"),
+});
 
 export default function NewsletterBanner({ onSubscribe }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading
+  const inputRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email) {
-      toast.error("Please enter an email address");
+
+    const parsed = emailSchema.safeParse({ email });
+    if (!parsed.success) {
+      const msg =
+        parsed.error.issues?.[0]?.message || "Please enter a valid email.";
+      toast.error(msg);
+      inputRef.current?.focus();
       return;
     }
 
     try {
       setStatus("loading");
 
-      // Hook up your API here (e.g., POST to /api/newsletter)
       if (onSubscribe) {
-        await onSubscribe(email);
+        await onSubscribe(parsed.data.email);
       } else {
         // demo delay
         await new Promise((r) => setTimeout(r, 800));
@@ -35,9 +51,9 @@ export default function NewsletterBanner({ onSubscribe }) {
       });
 
       setEmail("");
-      setStatus("idle");
-    } catch (err) {
+    } catch {
       toast.error("Something went wrong. Please try again.");
+    } finally {
       setStatus("idle");
     }
   };
@@ -54,13 +70,19 @@ export default function NewsletterBanner({ onSubscribe }) {
             Subscribe Our Newsletter
           </h2>
 
-          <form className="cs_newsletter_form" onSubmit={handleSubmit}>
+          <form
+            className="cs_newsletter_form"
+            onSubmit={handleSubmit}
+            noValidate
+          >
             <input
+              ref={inputRef}
               type="email"
               required
               autoComplete="email"
               placeholder="Enter your email address ..."
-              className="cs_newsletter_form_field"
+              className="cs_newsletter_form_field w-100" // <-- full width
+              style={{ width: "100%" }} // <-- force 100%
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={status === "loading"}
